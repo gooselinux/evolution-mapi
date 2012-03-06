@@ -1,0 +1,21 @@
+commit 663ae2b5de395f465246329fc8c38b77474217c2
+Date:   Wed May 19 23:38:18 2010 +0200
+
+    Bug #600386 - Do not use charset on messages with UNICODE body fetched
+
+diff -upr evolutionmapi.orig/src/camel/camel-mapi-folder.c evolutionmapi/src/camel/camel-mapi-folder.c
+--- evolutionmapi.orig/src/camel/camel-mapi-folder.c	2010-06-23 14:04:54.000000000 +0200
++++ evolutionmapi/src/camel/camel-mapi-folder.c	2010-06-23 14:08:22.000000000 +0200
+@@ -1490,8 +1490,10 @@ mapi_populate_msg_body_from_item (CamelM
+ 			type = (body->proptag == PR_BODY || body->proptag == PR_BODY_UNICODE) ? 
+ 				"text/plain" : "text/html";
+ 
+-		if (item->header.cpid) {
+-			if (item->header.cpid >= 28591 && item->header.cpid <= 28599)
++		if (item->header.cpid && (body->proptag & 0xFFFF) != PT_UNICODE) {
++			if (item->header.cpid == 20127)
++				buff = g_strdup_printf ("%s; charset=\"us-ascii\"", type);
++			else if (item->header.cpid >= 28591 && item->header.cpid <= 28599)
+ 				buff = g_strdup_printf ("%s; charset=\"ISO-8859-%d\"", type, item->header.cpid % 10);
+ 			else if (item->header.cpid == 28603)
+ 				buff = g_strdup_printf ("%s; charset=\"ISO-8859-13\"", type);

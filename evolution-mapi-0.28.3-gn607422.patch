@@ -1,0 +1,132 @@
+commit 1f554b338445931b602875fc44b75e1e072633af
+Date:   Tue Feb 16 13:17:26 2010 +0100
+
+    Bug #607422 - Crash while importing a message without From header
+
+diff -upr evolutionmapi.orig/src/camel/camel-mapi-folder.c evolutionmapi/src/camel/camel-mapi-folder.c
+--- evolutionmapi.orig/src/camel/camel-mapi-folder.c	2010-06-23 12:41:37.000000000 +0200
++++ evolutionmapi/src/camel/camel-mapi-folder.c	2010-06-23 12:45:34.000000000 +0200
+@@ -2053,7 +2053,7 @@ mapi_append_message (CamelFolder *folder
+ {
+ 	CamelMapiStore *mapi_store= CAMEL_MAPI_STORE(folder->parent_store);
+ 	CamelOfflineStore *offline = (CamelOfflineStore *) folder->parent_store;
+-	CamelAddress *from = NULL, *recipients = NULL;
++	CamelAddress *from = NULL;
+ 	CamelStoreInfo *si;
+ 
+ 	MapiItem *item = NULL;
+@@ -2085,9 +2085,8 @@ mapi_append_message (CamelFolder *folder
+ 
+ 	/* Convert MIME to Item */
+ 	from = (CamelAddress *) camel_mime_message_get_from (message);
+-	recipients = (CamelAddress *) camel_mime_message_get_recipients (message, "to");
+ 
+-	item = camel_mapi_utils_mime_to_item (message, from, recipients, ex);
++	item = camel_mapi_utils_mime_to_item (message, from, ex);
+ 
+ 	mid = exchange_mapi_create_item (-1, fid, NULL, NULL, 
+ 					 camel_mapi_utils_create_item_build_props, item,
+Only in evolutionmapi/src/camel: camel-mapi-folder.c.orig
+diff -upr evolutionmapi.orig/src/camel/camel-mapi-transport.c evolutionmapi/src/camel/camel-mapi-transport.c
+--- evolutionmapi.orig/src/camel/camel-mapi-transport.c	2010-06-23 12:41:37.000000000 +0200
++++ evolutionmapi/src/camel/camel-mapi-transport.c	2010-06-23 12:45:34.000000000 +0200
+@@ -106,7 +106,7 @@ mapi_send_to (CamelTransport *transport,
+ 	}
+ 
+ 	/* Convert MIME to MAPIItem, attacment lists and recipient list.*/
+-	item = camel_mapi_utils_mime_to_item (message, from, recipients, ex);
++	item = camel_mapi_utils_mime_to_item (message, from, ex);
+ 
+ 	/* send */
+ 	st = mapi_message_item_send(item);
+diff -upr evolutionmapi.orig/src/camel/camel-mapi-utils.c evolutionmapi/src/camel/camel-mapi-utils.c
+--- evolutionmapi.orig/src/camel/camel-mapi-utils.c	2010-06-23 12:41:37.000000000 +0200
++++ evolutionmapi/src/camel/camel-mapi-utils.c	2010-06-23 12:45:34.000000000 +0200
+@@ -114,19 +114,19 @@ mapi_item_add_recipient (const char *rec
+ static void
+ mapi_item_set_from(MapiItem *item, const char *from)
+ {
+-	if (item->header.from) { 
+-		free(item->header.from);
+-	}
+-	item->header.from = strdup(from);
++	if (item->header.from)
++		g_free (item->header.from);
++
++	item->header.from = g_strdup (from);
+ }
+ 
+ static void
+ mapi_item_set_subject(MapiItem *item, const char *subject)
+ {
+ 	if (item->header.subject)
+-		free(item->header.subject);
++		g_free (item->header.subject);
+ 
+-	item->header.subject = g_strdup(subject);
++	item->header.subject = g_strdup (subject);
+ }
+ 
+ #define MAX_READ_SIZE 0x1000
+@@ -320,8 +320,7 @@ mapi_do_multipart (CamelMultipart *mp, M
+ 
+ 
+ MapiItem *
+-camel_mapi_utils_mime_to_item (CamelMimeMessage *message, CamelAddress *from, CamelAddress *recipients,
+-			       CamelException *ex)
++camel_mapi_utils_mime_to_item (CamelMimeMessage *message, CamelAddress *from, CamelException *ex)
+ {
+ 	CamelDataWrapper *dw = NULL;
+ 	CamelContentType *type;
+@@ -339,26 +338,31 @@ camel_mapi_utils_mime_to_item (CamelMime
+ 
+ 	/* headers */
+ 
+-	if (!camel_internet_address_get((const CamelInternetAddress *)from, 0, &namep, &addressp)) {
+-		printf("index\n");
+-		return (FALSE);
++	if (from) {
++		if (!camel_internet_address_get ((const CamelInternetAddress *)from, 0, &namep, &addressp)) {
++			g_warning ("%s: Invalid 'from' passed in", G_STRFUNC);
++			g_free (item);
++			return NULL;
++		}
++	} else {
++		/* though invalid, then possible, to pass in a message without any 'from' */
++		namep = NULL;
+ 	}
+ 
+-	/** WARNING: double check **/
+ 	mapi_item_set_from (item, namep);
+ 
+ 	to = camel_mime_message_get_recipients(message, CAMEL_RECIPIENT_TYPE_TO);
+-	for (i = 0; camel_internet_address_get(to, i, &namep, &addressp); i++){
++	for (i = 0; to && camel_internet_address_get (to, i, &namep, &addressp); i++){
+ 		mapi_item_add_recipient (addressp, olTo, &recipient_list);
+ 	}
+ 
+ 	cc = camel_mime_message_get_recipients(message, CAMEL_RECIPIENT_TYPE_CC);
+-	for (i = 0; camel_internet_address_get(cc, i, &namep, &addressp); i++) {
++	for (i = 0; cc && camel_internet_address_get (cc, i, &namep, &addressp); i++) {
+ 		mapi_item_add_recipient (addressp, olCC, &recipient_list);
+ 	}
+ 
+ 	bcc = camel_mime_message_get_recipients(message, CAMEL_RECIPIENT_TYPE_BCC);
+-	for (i = 0; camel_internet_address_get(bcc, i, &namep, &addressp); i++) {
++	for (i = 0; bcc && camel_internet_address_get (bcc, i, &namep, &addressp); i++) {
+ 		mapi_item_add_recipient (addressp, olBCC, &recipient_list);
+ 	}
+ 	
+diff -upr evolutionmapi.orig/src/camel/camel-mapi-utils.h evolutionmapi/src/camel/camel-mapi-utils.h
+--- evolutionmapi.orig/src/camel/camel-mapi-utils.h	2010-06-23 12:41:37.000000000 +0200
++++ evolutionmapi/src/camel/camel-mapi-utils.h	2010-06-23 12:45:34.000000000 +0200
+@@ -27,8 +27,7 @@
+ G_BEGIN_DECLS
+ 
+ MapiItem *
+-camel_mapi_utils_mime_to_item (CamelMimeMessage *message, CamelAddress *from, 
+-			       CamelAddress *recipients, CamelException *ex);
++camel_mapi_utils_mime_to_item (CamelMimeMessage *message, CamelAddress *from, CamelException *ex);
+ 
+ gint
+ camel_mapi_utils_create_item_build_props (struct SPropValue **value, 

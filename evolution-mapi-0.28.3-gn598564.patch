@@ -1,0 +1,25 @@
+commit be2cd6dc8dfe1ced0f5f43a352201bdddc155e78
+Date:   Thu Apr 1 14:48:41 2010 +0200
+
+    Bug #598564 - Has problems encoding mails containing html
+
+diff -upr evolutionmapi.orig/src/camel/camel-mapi-folder.c evolutionmapi/src/camel/camel-mapi-folder.c
+--- evolutionmapi.orig/src/camel/camel-mapi-folder.c	2010-06-23 13:07:46.000000000 +0200
++++ evolutionmapi/src/camel/camel-mapi-folder.c	2010-06-23 13:07:53.000000000 +0200
+@@ -1518,7 +1518,15 @@ mapi_populate_msg_body_from_item (CamelM
+ 				"text/plain" : "text/html";
+ 
+ 		if (item->header.cpid) {
+-			if (item->header.cpid == 65001)
++			if (item->header.cpid >= 28591 && item->header.cpid <= 28599)
++				buff = g_strdup_printf ("%s; charset=\"ISO-8859-%d\"", type, item->header.cpid % 10);
++			else if (item->header.cpid == 28603)
++				buff = g_strdup_printf ("%s; charset=\"ISO-8859-13\"", type);
++			else if (item->header.cpid == 28605)
++				buff = g_strdup_printf ("%s; charset=\"ISO-8859-15\"", type);
++			else if (item->header.cpid == 65000)
++				buff = g_strdup_printf ("%s; charset=\"UTF-7\"", type);
++			else if (item->header.cpid == 65001)
+ 				buff = g_strdup_printf ("%s; charset=\"UTF-8\"", type);
+ 			else
+ 				buff = g_strdup_printf ("%s; charset=\"CP%d\"", type, item->header.cpid);

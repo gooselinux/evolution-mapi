@@ -1,0 +1,35 @@
+commit eb8060da62ff7f1dd1d4a2f3182772b726e9b5cf
+Date:   Mon Mar 15 15:35:49 2010 +0100
+
+    Bug #581434 - Double free or corruption in evolution-mapi calendar
+
+diff -upr evolutionmapi.orig/src/calendar/e-cal-backend-mapi.c evolutionmapi/src/calendar/e-cal-backend-mapi.c
+--- evolutionmapi.orig/src/calendar/e-cal-backend-mapi.c	2010-06-23 13:03:09.000000000 +0200
++++ evolutionmapi/src/calendar/e-cal-backend-mapi.c	2010-06-23 13:06:31.000000000 +0200
+@@ -1392,7 +1392,7 @@ e_cal_backend_mapi_create_object (ECalBa
+ 	GSList *recipients = NULL;
+ 	GSList *attachments = NULL;
+ 	GSList *streams = NULL;
+-	struct cbdata cbdata;
++	struct cbdata cbdata = { 0 };
+ 	struct Binary_r globalid;
+ 	struct icaltimetype current;
+ 
+@@ -1588,7 +1588,7 @@ e_cal_backend_mapi_modify_object (ECalBa
+ 	GSList *recipients = NULL;
+ 	GSList *streams = NULL;
+ 	GSList *attachments = NULL;
+-	struct cbdata cbdata;
++	struct cbdata cbdata = { 0 };
+ 	gboolean no_increment = FALSE;
+ 	icalproperty *prop;
+ 	struct icaltimetype current;
+@@ -1868,7 +1868,7 @@ e_cal_backend_mapi_send_objects (ECalBac
+ 		icalcomponent *subcomp = icalcomponent_get_first_component (icalcomp, kind);
+ 		while (subcomp) {
+ 			ECalComponent *comp = e_cal_component_new ();
+-			struct cbdata cbdata;
++			struct cbdata cbdata = {0};
+ 			mapi_id_t mid = 0;
+ 			GSList *recipients = NULL;
+ 			GSList *attachments = NULL;

@@ -1,0 +1,1272 @@
+diff -up evolution-mapi-0.28.3/po/ja.po.el6-translation-updates evolution-mapi-0.28.3/po/ja.po
+--- evolution-mapi-0.28.3/po/ja.po.el6-translation-updates	2009-07-02 05:04:25.000000000 -0400
++++ evolution-mapi-0.28.3/po/ja.po	2010-06-11 22:09:34.993780257 -0400
+@@ -1,27 +1,47 @@
++# translation of ja.po to Japanese
+ # evolution-mapi ja.po.
+-# Copyright (C) 2009 Free Software Foundation, Inc.
++# Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+ # This file is distributed under the same license as the evolution-mapi package.
+-# Takeshi AIHANA <takeshi.aihana@gmail.com>, 2009.
+ #
++# Takeshi AIHANA <takeshi.aihana@gmail.com>, 2009.
++# Kiyoto Hashida <khashida@redhat.com>, 2010.
+ msgid ""
+ msgstr ""
+-"Project-Id-Version: evolution-mapi trunk\n"
++"Project-Id-Version: ja\n"
+ "Report-Msgid-Bugs-To: \n"
+-"POT-Creation-Date: 2009-03-08 13:00+0900\n"
+-"PO-Revision-Date: 2009-03-08 13:00+0900\n"
+-"Last-Translator: Takeshi AIHANA <takeshi.aihana@gmail.com>\n"
+-"Language-Team: Japanese <takeshi.aihana@gmail.com>\n"
++"POT-Creation-Date: 2010-03-29 12:52+0530\n"
++"PO-Revision-Date: 2010-04-14 16:24+0900\n"
++"Last-Translator: Kiyoto Hashida <khashida@redhat.com>\n"
++"Language-Team: Japanese <jp@li.org>\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
++"X-Generator: KBabel 1.11.4\n"
++"Plural-Forms: Plural-Forms: nplurals=1; plural=0;\n\n"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-listener.c:592
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:119
++#: ../src/account-setup-eplugin/exchange-mapi-account-listener.c:624
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:216
+ #, c-format
+ msgid "Enter Password for %s@%s"
+ msgstr "%s@%s のパスワードを入力して下さい"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:109
++#. NOTE: A good way would be display the list of username entries
++#. using GtkEntryCompletion in the username gtkentry. But plugins
++#. as of now does not have access to it
++#. TODO : Fix strings
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:125
++msgid "Select username"
++msgstr "ユーザー名を選択"
++
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:135
++msgid "Full name"
++msgstr "フルネーム"
++
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:140
++msgid "User name"
++msgstr "ユーザー名"
++
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:205
+ msgid ""
+ "Server, username and domain name cannot be empty. Please fill them with "
+ "correct values."
+@@ -29,61 +49,106 @@ msgstr ""
+ "サーバ名とユーザ名とドメイン名を全て入力して下さい (これらの項目を空にはでき"
+ "ません)"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:143
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:243
+ msgid "Authentication finished successfully."
+ msgstr "認証が完了しました"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:149
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:249
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:259
+ msgid "Authentication failed."
+ msgstr "認証に失敗しました"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:211
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:314
+ msgid "_Domain name:"
+ msgstr "ドメイン名(_D):"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:221
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:324
+ msgid "_Authenticate"
+ msgstr "認証する(_A)"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:323
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:426
+ msgid "Personal Folders"
+ msgstr "個人のフォルダ"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:386
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:488
+ msgid "_Location:"
+ msgstr "場所(_L)"
+ 
+-#: ../src/calendar/e-cal-backend-mapi.c:115
+-#: ../src/calendar/e-cal-backend-mapi.c:1053
+-#: ../src/camel/camel-mapi-store.c:457
++#: ../src/account-setup-eplugin/exchange-mapi-account-settings.c:78
++msgid "_Folder size"
++msgstr "フォルダサイズ（_F）"
++
++#: ../src/account-setup-eplugin/exchange-mapi-account-settings.c:133
++msgid "Folder"
++msgstr "フォルダ"
++
++#: ../src/account-setup-eplugin/exchange-mapi-account-settings.c:138
++msgid "Size"
++msgstr "サイズ"
++
++#: ../src/account-setup-eplugin/exchange-mapi-account-settings.c:158
++msgid "Unable to retrieve folder size information"
++msgstr "フォルダサイズの情報を取り込めません"
++
++#: ../src/account-setup-eplugin/exchange-mapi-account-settings.c:182
++msgid "Folder Size"
++msgstr "フォルダサイズ"
++
++#: ../src/account-setup-eplugin/exchange-mapi-account-settings.c:190
++msgid "Fetching folder list ..."
++msgstr "フォルダ一覧を取り込んでいます..."
++
++#. Miscellaneous settings
++#: ../src/account-setup-eplugin/exchange-mapi-account-settings.c:250
++msgid "Miscellaneous"
++msgstr "その他"
++
++#: ../src/account-setup-eplugin/exchange-mapi-account-settings.c:263
++msgid "View the size of all Exchange folders"
++msgstr "全ての Exchange フォルダのサイズを表示"
++
++#: ../src/account-setup-eplugin/exchange-mapi-account-settings.c:265
++msgid "Folders Size"
++msgstr "フォルダサイズ"
++
++#: ../src/account-setup-eplugin/exchange-mapi-account-settings.c:276
++#: ../src/account-setup-eplugin/org-gnome-exchange-mapi.eplug.xml.h:1
++msgid "Exchange Settings"
++msgstr "Exchange の設定"
++
++#: ../src/calendar/e-cal-backend-mapi.c:114
++#: ../src/calendar/e-cal-backend-mapi.c:1141
++#: ../src/camel/camel-mapi-store.c:500
+ msgid "Authentication failed"
+ msgstr "認証に失敗しました"
+ 
+ #. To translators: This message is displayed on the status bar when calendar/tasks/memo items are being fetched from the server.
+-#: ../src/calendar/e-cal-backend-mapi.c:391
++#: ../src/calendar/e-cal-backend-mapi.c:390
+ #, c-format
+ msgid "Loading items in folder %s"
+ msgstr "%s フォルダにあるアイテムの読み込み中"
+ 
+ #. FIXME: String : We need to restart evolution-data-server
+-#: ../src/calendar/e-cal-backend-mapi.c:581
+-#: ../src/calendar/e-cal-backend-mapi.c:592
+-#: ../src/calendar/e-cal-backend-mapi.c:618
++#: ../src/calendar/e-cal-backend-mapi.c:622
++#: ../src/calendar/e-cal-backend-mapi.c:633
++#: ../src/calendar/e-cal-backend-mapi.c:661
++#: ../src/calendar/e-cal-backend-mapi.c:723
++#: ../src/calendar/e-cal-backend-mapi.c:733
+ msgid "Error fetching changes from the server."
+ msgstr "サーバの変更を取得する際にエラーが発生しました"
+ 
+-#: ../src/calendar/e-cal-backend-mapi.c:973
+-#: ../src/calendar/e-cal-backend-mapi.c:983
+-#: ../src/calendar/e-cal-backend-mapi.c:1088
+-#: ../src/calendar/e-cal-backend-mapi.c:1170
++#: ../src/calendar/e-cal-backend-mapi.c:1061
++#: ../src/calendar/e-cal-backend-mapi.c:1071
++#: ../src/calendar/e-cal-backend-mapi.c:1176
++#: ../src/calendar/e-cal-backend-mapi.c:1258
+ msgid "Could not create cache file"
+ msgstr "キャッシュ・ファイルを生成できませんでした"
+ 
+-#: ../src/calendar/e-cal-backend-mapi.c:1099
++#: ../src/calendar/e-cal-backend-mapi.c:1187
+ msgid "Could not create thread for populating cache"
+ msgstr "キャッシュを収集するスレッドを生成できませんでした"
+ 
+-#: ../src/calendar/e-cal-backend-mapi.c:1513
++#: ../src/calendar/e-cal-backend-mapi.c:1608
+ msgid ""
+ "Support for modifying single instances of a recurring appointment is not yet "
+ "implemented. No change was made to the appointment on the server."
+@@ -91,21 +156,36 @@ msgstr ""
+ "繰り返しの予定を変更する機能は未だ実装されていません (サーバにある予定は変更"
+ "されません)"
+ 
+-#: ../src/camel/camel-mapi-folder.c:333 ../src/camel/camel-mapi-folder.c:669
++#: ../src/camel/camel-mapi-folder.c:481
+ #, c-format
+-msgid "Fetching summary information for new messages in %s"
+-msgstr "%s にある新着メッセージのサマリを取得しています"
++msgid "Updating local summary cache for new messages in %s"
++msgstr "%s にある新着メッセージのローカルサマリーのキャッシュを更新しています"
++
++#: ../src/camel/camel-mapi-folder.c:703
++#, c-format
++msgid "Retrieving message IDs from server for %s"
++msgstr "%s のサーバーからメッセージ ID を取り込んでいます"
+ 
+-#: ../src/camel/camel-mapi-folder.c:662 ../src/camel/camel-mapi-folder.c:1221
+-#: ../src/camel/camel-mapi-folder.c:1229
++#: ../src/camel/camel-mapi-folder.c:725
++#, c-format
++msgid "Removing deleted messages from cache in %s"
++msgstr "%s にあるキャッシュから削除したメッセージを排除しています"
++
++#: ../src/camel/camel-mapi-folder.c:1058 ../src/camel/camel-mapi-folder.c:1749
++#: ../src/camel/camel-mapi-folder.c:1757
+ msgid "This message is not available in offline mode."
+ msgstr "このメッセージをオフライン・モードでは表示できません"
+ 
+-#: ../src/camel/camel-mapi-folder.c:679
++#: ../src/camel/camel-mapi-folder.c:1067
++#, c-format
++msgid "Fetching summary information for new messages in %s"
++msgstr "%s にある新着メッセージのサマリを取得しています"
++
++#: ../src/camel/camel-mapi-folder.c:1077
+ msgid "Fetching items failed"
+ msgstr "アイテムの取得に失敗しました"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1185
++#: ../src/camel/camel-mapi-folder.c:1713
+ #, c-format
+ msgid ""
+ "Cannot get message: %s\n"
+@@ -114,24 +194,34 @@ msgstr ""
+ "次のメッセージを取得できません: %s\n"
+ "  %s"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1185
++#: ../src/camel/camel-mapi-folder.c:1713
+ msgid "No such message"
+ msgstr "そのようなメッセージはありません"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1197
++#: ../src/camel/camel-mapi-folder.c:1725
+ msgid "Message fetching cancelled by user."
+ msgstr "メッセージの取得をキャンセルしました"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1204
++#: ../src/camel/camel-mapi-folder.c:1732
+ #, c-format
+ msgid "Cannot get message %s: %s"
+ msgstr "%s というメッセージを取得できません: %s"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1248 ../src/camel/camel-mapi-folder.c:1258
++#: ../src/camel/camel-mapi-folder.c:1778 ../src/camel/camel-mapi-folder.c:1790
+ msgid "Could not get message"
+ msgstr "メッセージを取得できません"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1609
++#: ../src/camel/camel-mapi-folder.c:2070
++#, c-format
++msgid "Cannot append message to folder '%s'"
++msgstr "'%s' というフォルダにメッセージを追記できません"
++
++#: ../src/camel/camel-mapi-folder.c:2077
++#, c-format
++msgid "Offline. '%s'"
++msgstr "オフライン '%s'"
++
++#: ../src/camel/camel-mapi-folder.c:2198
+ #, c-format
+ msgid "Could not load summary for %s"
+ msgstr "%s のサマリを読み込めませんでした"
+@@ -144,55 +234,37 @@ msgstr "新着メールの確認"
+ msgid "C_heck for new messages in all folders"
+ msgstr "全てのフォルダをチェックする(_H)"
+ 
+-#. i18n: GAL is an Outlookism, AD is a Windowsism
+-#: ../src/camel/camel-mapi-provider.c:66
+-msgid "Global Address List / Active Directory"
+-msgstr "グローバル・アドレス・リスト / アクティブ・ディレクトリ"
+-
+-#. i18n: "Global Catalog" is a Windowsism, but it's a
+-#. technical term and may not have translations?
+-#: ../src/camel/camel-mapi-provider.c:70
+-msgid "_Global Catalog server name:"
+-msgstr "グローバル・カタログ・サーバの名前(_G):"
+-
+-#: ../src/camel/camel-mapi-provider.c:72
+-#, c-format
+-msgid "_Limit number of GAL responses: %s"
+-msgstr "GAL 応答を制限する(_L): %s"
+-
+-#: ../src/camel/camel-mapi-provider.c:75
++#: ../src/camel/camel-mapi-provider.c:57
+ msgid "Options"
+ msgstr "オプション"
+ 
+-#: ../src/camel/camel-mapi-provider.c:77
++#: ../src/camel/camel-mapi-provider.c:59
+ msgid "Automatically synchroni_ze account locally"
+ msgstr "ローカルのアカウントを自動的に同期する(_Z)"
+ 
+ #. i18n: copy from evolution:camel-imap-provider.c
+-#: ../src/camel/camel-mapi-provider.c:80
++#: ../src/camel/camel-mapi-provider.c:62
+ msgid "_Apply filters to new messages in Inbox on this server"
+ msgstr "このサーバで受信した新着メッセージにフィルタ・ルールを適用する(_A)"
+ 
+-#: ../src/camel/camel-mapi-provider.c:82
++#: ../src/camel/camel-mapi-provider.c:64
+ msgid "Check new messages for _Junk contents"
+ msgstr "ジャンクかチェックする(_J)"
+ 
+-#: ../src/camel/camel-mapi-provider.c:84
++#: ../src/camel/camel-mapi-provider.c:66
+ msgid "Only check for Junk messag_es in the Inbox folder"
+ msgstr "受信箱にあるメッセージだけジャンクかどうかチェックする(_E)"
+ 
+-#: ../src/camel/camel-mapi-provider.c:96
++#: ../src/camel/camel-mapi-provider.c:78
+ msgid "For accessing Microsoft Exchange / OpenChange servers using MAPI"
+-msgstr ""
+-"MAPI を利用して Microsoft Exchange や OpenChange サーバにアクセスします"
++msgstr "MAPI を利用して Microsoft Exchange や OpenChange サーバにアクセスします"
+ 
+-#: ../src/camel/camel-mapi-provider.c:111
++#: ../src/camel/camel-mapi-provider.c:93
+ msgid "Password"
+ msgstr "パスワード"
+ 
+-#: ../src/camel/camel-mapi-provider.c:112
+-msgid ""
+-"This option will connect to the Openchange server using a plaintext password."
++#: ../src/camel/camel-mapi-provider.c:94
++msgid "This option will connect to the Openchange server using a plaintext password."
+ msgstr "Openchange サーバに接続する際に使用するパスワードです"
+ 
+ #: ../src/camel/camel-mapi-store.c:61
+@@ -203,14 +275,14 @@ msgstr "お気に入り"
+ msgid "All Public Folders"
+ msgstr "全ての公開フォルダ"
+ 
+-#: ../src/camel/camel-mapi-store.c:262 ../src/camel/camel-mapi-transport.c:347
++#: ../src/camel/camel-mapi-store.c:273 ../src/camel/camel-mapi-transport.c:128
+ #, c-format
+ msgid "Exchange MAPI server %s"
+ msgstr "Exchange MAPI サーバ %s"
+ 
+ #. To translators : Example string : Exchange MAPI service for
+ #. _username_ on _server host name__
+-#: ../src/camel/camel-mapi-store.c:266 ../src/camel/camel-mapi-transport.c:349
++#: ../src/camel/camel-mapi-store.c:277 ../src/camel/camel-mapi-transport.c:130
+ #, c-format
+ msgid "Exchange MAPI service for %s on %s"
+ msgstr "%s@%s の Exchange MAPI サーバ"
+@@ -219,49 +291,50 @@ msgstr "%s@%s の Exchange MAPI サー�
+ #. for prompting the user if it is available.
+ #. Second %s is : Username.
+ #. Third %s is : Server host name.
+-#: ../src/camel/camel-mapi-store.c:304
++#: ../src/camel/camel-mapi-store.c:315
+ #, c-format
+ msgid "%s Please enter the MAPI password for %s@%s"
+ msgstr "%s (%s@%s に対する MAPI のパスワードを入力して下さい)"
+ 
+-#: ../src/camel/camel-mapi-store.c:317
++#: ../src/camel/camel-mapi-store.c:328
+ msgid "You did not enter a password."
+ msgstr "パスワードを入力しませんでした"
+ 
+-#: ../src/camel/camel-mapi-store.c:325
++#: ../src/camel/camel-mapi-store.c:336
+ #, c-format
+ msgid "Unable to authenticate to Exchange MAPI server."
+ msgstr "MAPI サーバに対する認証を実施できません"
+ 
+-#: ../src/camel/camel-mapi-store.c:441
++#: ../src/camel/camel-mapi-store.c:484
+ msgid "Cannot create MAPI folders in offline mode."
+ msgstr "オフライン・モードでは MAPI のフォルダを生成できません"
+ 
+-#: ../src/camel/camel-mapi-store.c:446
++#: ../src/camel/camel-mapi-store.c:489
+ #, c-format
+ msgid "Cannot create new folder `%s'"
+ msgstr "'%s' という新しいフォルダを生成できません"
+ 
+-#: ../src/camel/camel-mapi-store.c:657
++#: ../src/camel/camel-mapi-store.c:698
+ #, c-format
+ msgid "Cannot rename MAPI folder `%s'. Folder does not exist."
+ msgstr "MAPI のフォルダ名を '%s' に変更できません (フォルダがありません)"
+ 
+-#: ../src/camel/camel-mapi-store.c:668
++#: ../src/camel/camel-mapi-store.c:709
+ #, c-format
+ msgid "Cannot rename MAPI default folder `%s' to `%s'."
+ msgstr "MAPI のデフォルトのフォルダ名を '%s' から '%s' に変更できません"
+ 
+-#: ../src/camel/camel-mapi-store.c:686
++#: ../src/camel/camel-mapi-store.c:727
+ #, c-format
+ msgid "Cannot rename MAPI folder `%s' to `%s'"
+ msgstr "MAPI のフォルダ名を '%s' から '%s' に変更できません"
+ 
+-#: ../src/camel/camel-mapi-store.c:1111
++#: ../src/camel/camel-mapi-store.c:1250
+ msgid "Folder list not available in offline mode."
+ msgstr "オフライン・モードではフォルダのリストを利用できません"
+ 
+ #. Fixme : Set a better error message. Would be helful in troubleshooting.
+-#: ../src/camel/camel-mapi-transport.c:335
++#: ../src/camel/camel-mapi-transport.c:116
+ msgid "Could not send message."
+ msgstr "メッセージを送信できませんでした"
++
+diff -up evolution-mapi-0.28.3/po/ko.po.el6-translation-updates evolution-mapi-0.28.3/po/ko.po
+--- evolution-mapi-0.28.3/po/ko.po.el6-translation-updates	2009-10-14 23:29:35.000000000 -0400
++++ evolution-mapi-0.28.3/po/ko.po	2010-06-11 22:09:34.995787639 -0400
+@@ -1,8 +1,8 @@
++# translation of ko.po to Korean
+ # evolution-mapi Korean translation
+ # This file is distributed under the same license as the evolution-mapi package.
+ #
+ # Based on evolution-exchange:
+-# Changwoo Ryu <cwryu@debian.org>, 2004-2006, 2007, 2008, 2009.
+ #
+ # 참고:
+ # - "Evolution"은 "에볼루션"으로 음역.
+@@ -10,20 +10,23 @@
+ #   예를 들어 Outlook Web Access를 MS에서는 "Outlook 웹 서비스"라고 하고 있지만
+ #   "아웃룩 웹 서비스"라고 번역한다.
+ #
++# Changwoo Ryu <cwryu@debian.org>, 2004-2006, 2007, 2008, 2009.
++# Hyunsok Oh <hoh@redhat.com>, 2010.
+ msgid ""
+ msgstr ""
+-"Project-Id-Version: evolution-mapi\n"
++"Project-Id-Version: ko\n"
+ "Report-Msgid-Bugs-To: \n"
+-"POT-Creation-Date: 2009-08-30 08:24+0900\n"
+-"PO-Revision-Date: 2009-08-30 08:29+0900\n"
+-"Last-Translator: Changwoo Ryu <cwryu@debian.org>\n"
+-"Language-Team: GNOME Korea <gnome-kr-hackers@lists.kldp.net>\n"
++"POT-Creation-Date: 2010-03-29 12:52+0530\n"
++"PO-Revision-Date: 2010-04-16 11:40+1000\n"
++"Last-Translator: Hyunsok Oh <hoh@redhat.com>\n"
++"Language-Team: Korean <ko@li.org>\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
++"X-Generator: KBabel 1.11.4\n"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-listener.c:616
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:204
++#: ../src/account-setup-eplugin/exchange-mapi-account-listener.c:624
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:216
+ #, c-format
+ msgid "Enter Password for %s@%s"
+ msgstr "암호를 입력하십시오 (%s@%s)"
+@@ -44,7 +47,7 @@ msgstr "전체 이름"
+ msgid "User name"
+ msgstr "사용자 이름"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:194
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:205
+ msgid ""
+ "Server, username and domain name cannot be empty. Please fill them with "
+ "correct values."
+@@ -52,27 +55,28 @@ msgstr ""
+ "서버, 사용자 이름, 도메인 이름은 비워둘 수 없습니다. 올바른 값을 입력하십시"
+ "오."
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:231
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:243
+ msgid "Authentication finished successfully."
+ msgstr "인증을 성공적으로 마쳤습니다."
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:237
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:249
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:259
+ msgid "Authentication failed."
+ msgstr "인증 실패."
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:299
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:314
+ msgid "_Domain name:"
+ msgstr "도메인 이름(_D):"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:309
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:324
+ msgid "_Authenticate"
+ msgstr "인증(_A)"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:411
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:426
+ msgid "Personal Folders"
+ msgstr "개인 폴더"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:473
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:488
+ msgid "_Location:"
+ msgstr "위치(_L):"
+ 
+@@ -118,37 +122,39 @@ msgstr "폴더 크기"
+ msgid "Exchange Settings"
+ msgstr "익스체인지 설정"
+ 
+-#: ../src/calendar/e-cal-backend-mapi.c:115
+-#: ../src/calendar/e-cal-backend-mapi.c:1053
+-#: ../src/camel/camel-mapi-store.c:472
++#: ../src/calendar/e-cal-backend-mapi.c:114
++#: ../src/calendar/e-cal-backend-mapi.c:1141
++#: ../src/camel/camel-mapi-store.c:500
+ msgid "Authentication failed"
+ msgstr "인증 실패"
+ 
+ #. To translators: This message is displayed on the status bar when calendar/tasks/memo items are being fetched from the server.
+-#: ../src/calendar/e-cal-backend-mapi.c:391
++#: ../src/calendar/e-cal-backend-mapi.c:390
+ #, c-format
+ msgid "Loading items in folder %s"
+ msgstr "%s 폴더의 항목을 읽어들입니다"
+ 
+ #. FIXME: String : We need to restart evolution-data-server
+-#: ../src/calendar/e-cal-backend-mapi.c:581
+-#: ../src/calendar/e-cal-backend-mapi.c:592
+-#: ../src/calendar/e-cal-backend-mapi.c:618
++#: ../src/calendar/e-cal-backend-mapi.c:622
++#: ../src/calendar/e-cal-backend-mapi.c:633
++#: ../src/calendar/e-cal-backend-mapi.c:661
++#: ../src/calendar/e-cal-backend-mapi.c:723
++#: ../src/calendar/e-cal-backend-mapi.c:733
+ msgid "Error fetching changes from the server."
+ msgstr "서버에서 바뀐 사항을 가져오는 데 오류가 발생했습니다."
+ 
+-#: ../src/calendar/e-cal-backend-mapi.c:973
+-#: ../src/calendar/e-cal-backend-mapi.c:983
+-#: ../src/calendar/e-cal-backend-mapi.c:1088
+-#: ../src/calendar/e-cal-backend-mapi.c:1170
++#: ../src/calendar/e-cal-backend-mapi.c:1061
++#: ../src/calendar/e-cal-backend-mapi.c:1071
++#: ../src/calendar/e-cal-backend-mapi.c:1176
++#: ../src/calendar/e-cal-backend-mapi.c:1258
+ msgid "Could not create cache file"
+ msgstr "캐시 파일을 만들 수 없습니다"
+ 
+-#: ../src/calendar/e-cal-backend-mapi.c:1099
++#: ../src/calendar/e-cal-backend-mapi.c:1187
+ msgid "Could not create thread for populating cache"
+ msgstr "사용할 캐시에 대한 스레드를 만들 수 없습니다"
+ 
+-#: ../src/calendar/e-cal-backend-mapi.c:1513
++#: ../src/calendar/e-cal-backend-mapi.c:1608
+ msgid ""
+ "Support for modifying single instances of a recurring appointment is not yet "
+ "implemented. No change was made to the appointment on the server."
+@@ -156,36 +162,36 @@ msgstr ""
+ "반복하는 약속의 한 인스턴스를 수정하는 기능은 아직 구현하지 않았습니다. 서버"
+ "에 들어 있는 약속은 바뀌지 않았습니다."
+ 
+-#: ../src/camel/camel-mapi-folder.c:478
++#: ../src/camel/camel-mapi-folder.c:481
+ #, c-format
+ msgid "Updating local summary cache for new messages in %s"
+ msgstr "%s의 새 메시지의 로컬 요약 캐시를 업데이트하는 중입니다"
+ 
+-#: ../src/camel/camel-mapi-folder.c:702
++#: ../src/camel/camel-mapi-folder.c:703
+ #, c-format
+ msgid "Retrieving message IDs from server for %s"
+ msgstr "서버에서 %s에 대한 메시지 ID를 가져오는 중입니다"
+ 
+-#: ../src/camel/camel-mapi-folder.c:724
++#: ../src/camel/camel-mapi-folder.c:725
+ #, c-format
+ msgid "Removing deleted messages from cache in %s"
+ msgstr "캐시에서 %s 안에 삭제한 메시지를 제거하는 중입니다"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1029 ../src/camel/camel-mapi-folder.c:1643
+-#: ../src/camel/camel-mapi-folder.c:1651
++#: ../src/camel/camel-mapi-folder.c:1058 ../src/camel/camel-mapi-folder.c:1749
++#: ../src/camel/camel-mapi-folder.c:1757
+ msgid "This message is not available in offline mode."
+ msgstr "이 메시지는 오프라인 모드에서는 볼 수 없습니다."
+ 
+-#: ../src/camel/camel-mapi-folder.c:1038
++#: ../src/camel/camel-mapi-folder.c:1067
+ #, c-format
+ msgid "Fetching summary information for new messages in %s"
+ msgstr "%s의 새 메시지의 요약 정보를 가져오는 중입니다"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1048
++#: ../src/camel/camel-mapi-folder.c:1077
+ msgid "Fetching items failed"
+ msgstr "항목 가져오기가 실패했습니다"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1607
++#: ../src/camel/camel-mapi-folder.c:1713
+ #, c-format
+ msgid ""
+ "Cannot get message: %s\n"
+@@ -194,33 +200,34 @@ msgstr ""
+ "메시지를 가져올 수 없습니다: %s\n"
+ "  %s"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1607
++#: ../src/camel/camel-mapi-folder.c:1713
+ msgid "No such message"
+ msgstr "그런 메시지가 없습니다"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1619
++#: ../src/camel/camel-mapi-folder.c:1725
+ msgid "Message fetching cancelled by user."
+ msgstr "사용자가 메시지 가져오기를 취소했습니다."
+ 
+-#: ../src/camel/camel-mapi-folder.c:1626
++#: ../src/camel/camel-mapi-folder.c:1732
+ #, c-format
+ msgid "Cannot get message %s: %s"
+ msgstr "%s 메시지를 가져올 수 없습니다: %s"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1672 ../src/camel/camel-mapi-folder.c:1684
++#: ../src/camel/camel-mapi-folder.c:1778 ../src/camel/camel-mapi-folder.c:1790
+ msgid "Could not get message"
+ msgstr "메시지를 가져올 수 없습니다"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1964
++#: ../src/camel/camel-mapi-folder.c:2070
+ #, c-format
+ msgid "Cannot append message to folder '%s'"
+ msgstr "메시지를 '%s' 폴더에 추가할 수 없습니다"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1971
+-msgid "Offline."
+-msgstr "연결 안 됨."
++#: ../src/camel/camel-mapi-folder.c:2077
++#, c-format
++msgid "Offline. '%s'"
++msgstr "오프라인. '%s'"
+ 
+-#: ../src/camel/camel-mapi-folder.c:2091
++#: ../src/camel/camel-mapi-folder.c:2198
+ #, c-format
+ msgid "Could not load summary for %s"
+ msgstr "%s에 요약을 읽어들일 수 없습니다"
+@@ -263,8 +270,7 @@ msgid "Password"
+ msgstr "암호"
+ 
+ #: ../src/camel/camel-mapi-provider.c:94
+-msgid ""
+-"This option will connect to the Openchange server using a plaintext password."
++msgid "This option will connect to the Openchange server using a plaintext password."
+ msgstr ""
+ "이 옵션을 켜면 보통 일반 텍스트 암호 인증을 통해 오픈익스체인지 서버에 연결합"
+ "니다."
+@@ -307,31 +313,31 @@ msgstr "암호를 입력하지 않았습
+ msgid "Unable to authenticate to Exchange MAPI server."
+ msgstr "익스체인지 MAPI 서버에 인증할 수 없습니다."
+ 
+-#: ../src/camel/camel-mapi-store.c:456
++#: ../src/camel/camel-mapi-store.c:484
+ msgid "Cannot create MAPI folders in offline mode."
+ msgstr "오프라인 모드에서는 MAPI 폴더를 만들 수 없습니다."
+ 
+-#: ../src/camel/camel-mapi-store.c:461
++#: ../src/camel/camel-mapi-store.c:489
+ #, c-format
+ msgid "Cannot create new folder `%s'"
+ msgstr "`%s' 폴더를 새로 만들 수 없습니다"
+ 
+-#: ../src/camel/camel-mapi-store.c:670
++#: ../src/camel/camel-mapi-store.c:698
+ #, c-format
+ msgid "Cannot rename MAPI folder `%s'. Folder does not exist."
+ msgstr "MAPI 폴더 이름을 `%s'에서 바꿀 수 없습니다. 그 폴더가 없습니다."
+ 
+-#: ../src/camel/camel-mapi-store.c:681
++#: ../src/camel/camel-mapi-store.c:709
+ #, c-format
+ msgid "Cannot rename MAPI default folder `%s' to `%s'."
+ msgstr "MAPI 기본 폴더의 이름을 `%s'에서 `%s'(으)로 바꿀 수 없습니다."
+ 
+-#: ../src/camel/camel-mapi-store.c:699
++#: ../src/camel/camel-mapi-store.c:727
+ #, c-format
+ msgid "Cannot rename MAPI folder `%s' to `%s'"
+ msgstr "MAPI 폴더 이름을 `%s'에서 `%s'(으)로 바꿀 수 없습니다"
+ 
+-#: ../src/camel/camel-mapi-store.c:1227
++#: ../src/camel/camel-mapi-store.c:1250
+ msgid "Folder list not available in offline mode."
+ msgstr "폴더 목록은 오프라인 모드에서는 사용할 수 없습니다."
+ 
+@@ -339,3 +345,4 @@ msgstr "폴더 목록은 오프라인 �
+ #: ../src/camel/camel-mapi-transport.c:116
+ msgid "Could not send message."
+ msgstr "메시지를 보낼 수 없습니다."
++
+diff -up evolution-mapi-0.28.3/po/ta.po.el6-translation-updates evolution-mapi-0.28.3/po/ta.po
+--- evolution-mapi-0.28.3/po/ta.po.el6-translation-updates	2009-10-14 23:30:08.000000000 -0400
++++ evolution-mapi-0.28.3/po/ta.po	2010-06-11 22:09:34.998780763 -0400
+@@ -4,26 +4,27 @@
+ # This file is distributed under the same license as the PACKAGE package.
+ #
+ # Dr.T.vasudevan <agnihot3@gmail.com>, 2009.
+-# I. Felix <ifelix@redhat.com>, 2009.
++# I. Felix <ifelix@redhat.com>, 2009, 2010.
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: evolution-mapi.gnome-2-28.ta\n"
+-"Report-Msgid-Bugs-To: http://bugzilla.gnome.org/enter_bug.cgi?product=evolution-mapi\n"
+-"POT-Creation-Date: 2009-09-08 06:24+0000\n"
+-"PO-Revision-Date: 2009-09-17 14:25+0530\n"
+-"Last-Translator: I. Felix <ifelix@redhat.com>\n"
+-"Language-Team: Tamil <fedora-trans-ta@redhat.com>\n"
++"Report-Msgid-Bugs-To: \n"
++"POT-Creation-Date: 2010-03-29 12:52+0530\n"
++"PO-Revision-Date: 2010-04-15 13:26+0530\n"
++"Last-Translator: \n"
++"Language-Team: Tamil <kde-i18n-doc@kde.org>\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
+-"X-Generator: KBabel 1.11.4\n"
+-"Plural-Forms: nplurals=2; plural=(n!=1);\\n\n"
++"X-Generator: Lokalize 1.0\n"
++"Plural-Forms: nplurals=2; plural=(n!=1);\\n"
++"\n"
+ "\n"
+ "\n"
+ "\n"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-listener.c:616
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:204
++#: ../src/account-setup-eplugin/exchange-mapi-account-listener.c:624
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:216
+ #, c-format
+ msgid "Enter Password for %s@%s"
+ msgstr "%s@%s க்கு கடவுச்சொல் உள்ளிடுக"
+@@ -44,7 +45,7 @@ msgstr "முழுப்பெயர�
+ msgid "User name"
+ msgstr "பயனர் பெயர்"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:194
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:205
+ msgid ""
+ "Server, username and domain name cannot be empty. Please fill them with "
+ "correct values."
+@@ -52,27 +53,28 @@ msgstr ""
+ "சேவையகம் பயனர் பெயர் மற்றும் களப் பெயர் வெற்றாக இருக்கலாகாது. தயவு செய்து சரியான "
+ "மதிப்புகளால் அவற்றை நிரப்புக"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:231
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:243
+ msgid "Authentication finished successfully."
+ msgstr "அங்கீகாரம் வெற்றிகரமாக முடிந்தது"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:237
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:249
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:259
+ msgid "Authentication failed."
+ msgstr "அங்கீகாரம் மறுக்கப்பட்டது"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:299
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:314
+ msgid "_Domain name:"
+-msgstr "_D களம் பெயர்:"
++msgstr "களம் பெயர் (_D):"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:309
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:324
+ msgid "_Authenticate"
+ msgstr "அங்கீகரித்தல் (_A)"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:411
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:426
+ msgid "Personal Folders"
+ msgstr "தனிப்பட்ட அடைவுகள்"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:473
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:488
+ msgid "_Location:"
+ msgstr "இடம் (_L):"
+ 
+@@ -118,37 +120,39 @@ msgstr "கோப்புறைகள�
+ msgid "Exchange Settings"
+ msgstr "பரிமாற்று அமைவுகள்"
+ 
+-#: ../src/calendar/e-cal-backend-mapi.c:115
+-#: ../src/calendar/e-cal-backend-mapi.c:1053
+-#: ../src/camel/camel-mapi-store.c:472
++#: ../src/calendar/e-cal-backend-mapi.c:114
++#: ../src/calendar/e-cal-backend-mapi.c:1141
++#: ../src/camel/camel-mapi-store.c:500
+ msgid "Authentication failed"
+ msgstr "அங்கீகாரம் மறுக்கப்பட்டது "
+ 
+ #. To translators: This message is displayed on the status bar when calendar/tasks/memo items are being fetched from the server.
+-#: ../src/calendar/e-cal-backend-mapi.c:391
++#: ../src/calendar/e-cal-backend-mapi.c:390
+ #, c-format
+ msgid "Loading items in folder %s"
+ msgstr "அடைவு %s இல் உள்ள உருப்படிகளை ஏற்றுகிறது"
+ 
+ #. FIXME: String : We need to restart evolution-data-server
+-#: ../src/calendar/e-cal-backend-mapi.c:581
+-#: ../src/calendar/e-cal-backend-mapi.c:592
+-#: ../src/calendar/e-cal-backend-mapi.c:618
++#: ../src/calendar/e-cal-backend-mapi.c:622
++#: ../src/calendar/e-cal-backend-mapi.c:633
++#: ../src/calendar/e-cal-backend-mapi.c:661
++#: ../src/calendar/e-cal-backend-mapi.c:723
++#: ../src/calendar/e-cal-backend-mapi.c:733
+ msgid "Error fetching changes from the server."
+ msgstr "சேவையகத்தில் இருந்து மாற்றங்களை கொண்டு வருவதில்பிழை."
+ 
+-#: ../src/calendar/e-cal-backend-mapi.c:973
+-#: ../src/calendar/e-cal-backend-mapi.c:983
+-#: ../src/calendar/e-cal-backend-mapi.c:1088
+-#: ../src/calendar/e-cal-backend-mapi.c:1170
++#: ../src/calendar/e-cal-backend-mapi.c:1061
++#: ../src/calendar/e-cal-backend-mapi.c:1071
++#: ../src/calendar/e-cal-backend-mapi.c:1176
++#: ../src/calendar/e-cal-backend-mapi.c:1258
+ msgid "Could not create cache file"
+ msgstr "தற்காலிக கோப்பை உருவாக்க முடியவில்லை"
+ 
+-#: ../src/calendar/e-cal-backend-mapi.c:1099
++#: ../src/calendar/e-cal-backend-mapi.c:1187
+ msgid "Could not create thread for populating cache"
+ msgstr "இடமாற்றினை பரப்ப இழையை உருவாக்க முடியாது"
+ 
+-#: ../src/calendar/e-cal-backend-mapi.c:1513
++#: ../src/calendar/e-cal-backend-mapi.c:1608
+ msgid ""
+ "Support for modifying single instances of a recurring appointment is not yet "
+ "implemented. No change was made to the appointment on the server."
+@@ -156,36 +160,36 @@ msgstr ""
+ "மீள் நிகழ் நிகழ்வுகளின் ஒரு தனியனை மாற்றும் வசதிக்கு  ஆதரவை இன்னும் செயலாக்கவில்லை. "
+ "சேவையகத்தில் மாறுதல் ஏதும் செய்யப்படவில்லை."
+ 
+-#: ../src/camel/camel-mapi-folder.c:478
++#: ../src/camel/camel-mapi-folder.c:481
+ #, c-format
+ msgid "Updating local summary cache for new messages in %s"
+ msgstr "%s இல் உள்ள புதிய செய்திகளுக்கு சுருக்க தகவலை மேம்படுத்துகிறது"
+ 
+-#: ../src/camel/camel-mapi-folder.c:702
++#: ../src/camel/camel-mapi-folder.c:703
+ #, c-format
+ msgid "Retrieving message IDs from server for %s"
+ msgstr "செய்தி IDகளை சேவையகத்திலிருந்து %sக்கு எடுக்கிறது"
+ 
+-#: ../src/camel/camel-mapi-folder.c:724
++#: ../src/camel/camel-mapi-folder.c:725
+ #, c-format
+ msgid "Removing deleted messages from cache in %s"
+ msgstr "%sஇல் அழிக்கப்பட்ட செய்திகளுக்கு கேஷிலிருந்து நீக்குகிறது"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1029 ../src/camel/camel-mapi-folder.c:1643
+-#: ../src/camel/camel-mapi-folder.c:1651
++#: ../src/camel/camel-mapi-folder.c:1058 ../src/camel/camel-mapi-folder.c:1749
++#: ../src/camel/camel-mapi-folder.c:1757
+ msgid "This message is not available in offline mode."
+ msgstr "இணையத் தொடர்பு விலகிய முறையில் இந்த செய்தி கிடைக்காது."
+ 
+-#: ../src/camel/camel-mapi-folder.c:1038
++#: ../src/camel/camel-mapi-folder.c:1067
+ #, c-format
+ msgid "Fetching summary information for new messages in %s"
+ msgstr "%s இல் உள்ள புதிய செய்திகளுக்கு சுருக்க தகவலை கொண்டு வருகிறது"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1048
++#: ../src/camel/camel-mapi-folder.c:1077
+ msgid "Fetching items failed"
+ msgstr "உருப்படிகளை கொண்டு வருதல் தோல்வியுற்றது"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1607
++#: ../src/camel/camel-mapi-folder.c:1713
+ #, c-format
+ msgid ""
+ "Cannot get message: %s\n"
+@@ -194,35 +198,34 @@ msgstr ""
+ "செய்தியை பெற முடியவில்லை: %s\n"
+ "  %s"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1607
++#: ../src/camel/camel-mapi-folder.c:1713
+ msgid "No such message"
+ msgstr "இது போன்ற செய்தி இல்லை"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1619
++#: ../src/camel/camel-mapi-folder.c:1725
+ msgid "Message fetching cancelled by user."
+ msgstr "செய்தி கொண்டு வருதல் பயனரால் இரத்து செய்யப்பட்டது."
+ 
+-#: ../src/camel/camel-mapi-folder.c:1626
++#: ../src/camel/camel-mapi-folder.c:1732
+ #, c-format
+ msgid "Cannot get message %s: %s"
+ msgstr "%s செய்தியை பெற முடியவில்லை: %s"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1672 ../src/camel/camel-mapi-folder.c:1684
++#: ../src/camel/camel-mapi-folder.c:1778 ../src/camel/camel-mapi-folder.c:1790
+ msgid "Could not get message"
+ msgstr "செய்தியை பெற முடியவில்லை"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1964
++#: ../src/camel/camel-mapi-folder.c:2070
+ #, c-format
+ msgid "Cannot append message to folder '%s'"
+ msgstr "கோப்புறை `%s' இல் செய்தியை சேர்க்க முடியவில்லை"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1971
++#: ../src/camel/camel-mapi-folder.c:2077
+ #, c-format
+-#| msgid "Offline."
+ msgid "Offline. '%s'"
+ msgstr "ஆஃப்லைன். '%s'"
+ 
+-#: ../src/camel/camel-mapi-folder.c:2091
++#: ../src/camel/camel-mapi-folder.c:2198
+ #, c-format
+ msgid "Could not load summary for %s"
+ msgstr "%s க்கான சுருக்கத்தை ஏற்ற முடியவில்லை"
+@@ -241,7 +244,7 @@ msgstr "தேர்வுகள்"
+ 
+ #: ../src/camel/camel-mapi-provider.c:59
+ msgid "Automatically synchroni_ze account locally"
+-msgstr "(_z) தானியங்கியாக உள்ளமை கணக்கை ஒத்திசைக்கவும்"
++msgstr "தானியங்கியாக உள்ளமை கணக்கை ஒத்திசைக்கவும் (_z)"
+ 
+ #. i18n: copy from evolution:camel-imap-provider.c
+ #: ../src/camel/camel-mapi-provider.c:62
+@@ -308,36 +311,36 @@ msgstr "நீங்கள் கடவ�
+ msgid "Unable to authenticate to Exchange MAPI server."
+ msgstr "எக்ஸ்சேஞ்ச்  எம்ஏபிஐ சேவையகத்துக்கு அங்கீகாரப்படுத்த முடியவில்லை."
+ 
+-#: ../src/camel/camel-mapi-store.c:456
++#: ../src/camel/camel-mapi-store.c:484
+ msgid "Cannot create MAPI folders in offline mode."
+ msgstr "எம்ஏபிஐ அடைவுகளை இணைப்பு விலகி உருவாக்க முடியாது"
+ 
+-#: ../src/camel/camel-mapi-store.c:461
++#: ../src/camel/camel-mapi-store.c:489
+ #, c-format
+ msgid "Cannot create new folder `%s'"
+ msgstr "புதிய அடைவு `%s' ஐ உருவாக்க முடியாது"
+ 
+-#: ../src/camel/camel-mapi-store.c:670
++#: ../src/camel/camel-mapi-store.c:698
+ #, c-format
+ msgid "Cannot rename MAPI folder `%s'. Folder does not exist."
+ msgstr "எம்ஏபிஐ  அடைவு `%s' ஐ மாற்றுப்பெயர் இட முடியாது. அடைவு இருப்பில் இல்லை"
+ 
+-#: ../src/camel/camel-mapi-store.c:681
++#: ../src/camel/camel-mapi-store.c:709
+ #, c-format
+ msgid "Cannot rename MAPI default folder `%s' to `%s'."
+ msgstr "எம்ஏபிஐ முன்னிருப்பு அடைவு `%s' ஐ `%s'ஆக மாற்றுப்பெயர் இட முடியாது."
+ 
+-#: ../src/camel/camel-mapi-store.c:699
++#: ../src/camel/camel-mapi-store.c:727
+ #, c-format
+ msgid "Cannot rename MAPI folder `%s' to `%s'"
+ msgstr "எம்ஏபிஐ அடைவு `%s' ஐ `%s'ஆக மாற்றுப்பெயர் இட முடியாது."
+ 
+-#: ../src/camel/camel-mapi-store.c:1227
++#: ../src/camel/camel-mapi-store.c:1250
+ msgid "Folder list not available in offline mode."
+ msgstr "அடைவு பட்டியல் இணைப்பு விலகிய பாங்கில் கிடைக்காது"
+ 
+ #. Fixme : Set a better error message. Would be helful in troubleshooting.
+ #: ../src/camel/camel-mapi-transport.c:116
+ msgid "Could not send message."
+-msgstr "செய்தி அனுப்ப முடியவில்லை"
++msgstr "செய்தி அனுப்ப முடியவில்லை."
+ 
+diff -up evolution-mapi-0.28.3/po/zh_CN.po.el6-translation-updates evolution-mapi-0.28.3/po/zh_CN.po
+--- evolution-mapi-0.28.3/po/zh_CN.po.el6-translation-updates	2010-03-01 08:28:12.000000000 -0500
++++ evolution-mapi-0.28.3/po/zh_CN.po	2010-06-11 22:09:35.001780453 -0400
+@@ -1,22 +1,25 @@
++# translation of zh_CN.po to Wei Liu
++# 甘露(Gan Lu) <rhythm.gan@gmail.com>, 2009.
++# Tao Wei <weitao1979@gmail.com>, 2009.
++# Leah Liu <lliu@redhat.com>, 2010.
+ # Simplified Chinese translation.
+-# Copyright (C) 2008, 2009 Free Software Foundation, Inc. 
++# Copyright (C) 2008, 2009, 2010 Free Software Foundation, Inc.
+ # This file is distributed under the same license as the evolution-mapi package.
+-# 甘露(Gan Lu) <rhythm.gan@gmail.com>, 2009
+-# Tao Wei <weitao1979@gmail.com>, 2009.
+ msgid ""
+ msgstr ""
+-"Project-Id-Version: evolution-mapi\n"
++"Project-Id-Version: zh_CN\n"
+ "Report-Msgid-Bugs-To: \n"
+-"POT-Creation-Date: 2009-11-17 12:28+0800\n"
+-"PO-Revision-Date: 2009-11-17 12:26+0800\n"
+-"Last-Translator: Tao Wei <weitao1979@gmail.com>\n"
+-"Language-Team: \n"
++"POT-Creation-Date: 2010-03-29 12:52+0530\n"
++"PO-Revision-Date: 2010-04-08 14:59+1000\n"
++"Last-Translator: Leah Liu <lliu@redhat.com>\n"
++"Language-Team: Wei Liu\n"
+ "MIME-Version: 1.0\n"
+ "Content-Type: text/plain; charset=UTF-8\n"
+ "Content-Transfer-Encoding: 8bit\n"
++"X-Generator: KBabel 1.11.4\n"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-listener.c:616
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:204
++#: ../src/account-setup-eplugin/exchange-mapi-account-listener.c:624
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:216
+ #, c-format
+ msgid "Enter Password for %s@%s"
+ msgstr "输入 %s@%s 的密码"
+@@ -37,40 +40,40 @@ msgstr "全名"
+ msgid "User name"
+ msgstr "用户名称"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:194
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:205
+ msgid ""
+ "Server, username and domain name cannot be empty. Please fill them with "
+ "correct values."
+ msgstr "服务器，用户名及域名不能为空。请填上正确的值。"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:231
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:243
+ msgid "Authentication finished successfully."
+ msgstr "验证成功完成。"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:237
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:249
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:259
+ msgid "Authentication failed."
+ msgstr "验证失败。"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:299
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:314
+ msgid "_Domain name:"
+ msgstr "域名(_D)："
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:309
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:324
+ msgid "_Authenticate"
+ msgstr "验证(_A)"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:411
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:426
+ msgid "Personal Folders"
+ msgstr "个人文件夹"
+ 
+-#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:473
++#: ../src/account-setup-eplugin/exchange-mapi-account-setup.c:488
+ msgid "_Location:"
+ msgstr "位置(_L)："
+ 
+ #: ../src/account-setup-eplugin/exchange-mapi-account-settings.c:78
+-#, fuzzy
+ msgid "_Folder size"
+-msgstr "文件夹大小"
++msgstr "文件夹大小（_F）"
+ 
+ #: ../src/account-setup-eplugin/exchange-mapi-account-settings.c:133
+ msgid "Folder"
+@@ -110,37 +113,39 @@ msgstr "文件夹大小"
+ msgid "Exchange Settings"
+ msgstr "Exchange 设置"
+ 
+-#: ../src/calendar/e-cal-backend-mapi.c:115
+-#: ../src/calendar/e-cal-backend-mapi.c:1053
+-#: ../src/camel/camel-mapi-store.c:472
++#: ../src/calendar/e-cal-backend-mapi.c:114
++#: ../src/calendar/e-cal-backend-mapi.c:1141
++#: ../src/camel/camel-mapi-store.c:500
+ msgid "Authentication failed"
+ msgstr "验证失败"
+ 
+ #. To translators: This message is displayed on the status bar when calendar/tasks/memo items are being fetched from the server.
+-#: ../src/calendar/e-cal-backend-mapi.c:391
++#: ../src/calendar/e-cal-backend-mapi.c:390
+ #, c-format
+ msgid "Loading items in folder %s"
+ msgstr "正在载入文件夹 %s 内项目"
+ 
+ #. FIXME: String : We need to restart evolution-data-server
+-#: ../src/calendar/e-cal-backend-mapi.c:581
+-#: ../src/calendar/e-cal-backend-mapi.c:592
+-#: ../src/calendar/e-cal-backend-mapi.c:618
++#: ../src/calendar/e-cal-backend-mapi.c:622
++#: ../src/calendar/e-cal-backend-mapi.c:633
++#: ../src/calendar/e-cal-backend-mapi.c:661
++#: ../src/calendar/e-cal-backend-mapi.c:723
++#: ../src/calendar/e-cal-backend-mapi.c:733
+ msgid "Error fetching changes from the server."
+ msgstr "从服务器中获取变化出错。"
+ 
+-#: ../src/calendar/e-cal-backend-mapi.c:973
+-#: ../src/calendar/e-cal-backend-mapi.c:983
+-#: ../src/calendar/e-cal-backend-mapi.c:1088
+-#: ../src/calendar/e-cal-backend-mapi.c:1170
++#: ../src/calendar/e-cal-backend-mapi.c:1061
++#: ../src/calendar/e-cal-backend-mapi.c:1071
++#: ../src/calendar/e-cal-backend-mapi.c:1176
++#: ../src/calendar/e-cal-backend-mapi.c:1258
+ msgid "Could not create cache file"
+ msgstr "无法创建缓存文件"
+ 
+-#: ../src/calendar/e-cal-backend-mapi.c:1099
++#: ../src/calendar/e-cal-backend-mapi.c:1187
+ msgid "Could not create thread for populating cache"
+ msgstr "无法为填充缓存创建线程"
+ 
+-#: ../src/calendar/e-cal-backend-mapi.c:1516
++#: ../src/calendar/e-cal-backend-mapi.c:1608
+ msgid ""
+ "Support for modifying single instances of a recurring appointment is not yet "
+ "implemented. No change was made to the appointment on the server."
+@@ -151,31 +156,31 @@ msgstr "对于修改循环预约中单�
+ msgid "Updating local summary cache for new messages in %s"
+ msgstr "为 %s 中的新信息上载本地摘要缓存"
+ 
+-#: ../src/camel/camel-mapi-folder.c:704
++#: ../src/camel/camel-mapi-folder.c:703
+ #, c-format
+ msgid "Retrieving message IDs from server for %s"
+ msgstr "从 %s 服务器中检索信息 ID"
+ 
+-#: ../src/camel/camel-mapi-folder.c:726
++#: ../src/camel/camel-mapi-folder.c:725
+ #, c-format
+ msgid "Removing deleted messages from cache in %s"
+ msgstr "从 %s 的缓存中移除删除的信息"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1034 ../src/camel/camel-mapi-folder.c:1664
+-#: ../src/camel/camel-mapi-folder.c:1672
++#: ../src/camel/camel-mapi-folder.c:1058 ../src/camel/camel-mapi-folder.c:1749
++#: ../src/camel/camel-mapi-folder.c:1757
+ msgid "This message is not available in offline mode."
+ msgstr "该消息在离线模式下不可用。"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1043
++#: ../src/camel/camel-mapi-folder.c:1067
+ #, c-format
+ msgid "Fetching summary information for new messages in %s"
+ msgstr "正在为在 %s 中的新消息获取摘要信息"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1053
++#: ../src/camel/camel-mapi-folder.c:1077
+ msgid "Fetching items failed"
+ msgstr "获取项目失败"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1628
++#: ../src/camel/camel-mapi-folder.c:1713
+ #, c-format
+ msgid ""
+ "Cannot get message: %s\n"
+@@ -184,34 +189,34 @@ msgstr ""
+ "无法得到消息：%s\n"
+ "  %s"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1628
++#: ../src/camel/camel-mapi-folder.c:1713
+ msgid "No such message"
+ msgstr "没有此类消息"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1640
++#: ../src/camel/camel-mapi-folder.c:1725
+ msgid "Message fetching cancelled by user."
+ msgstr "获取信息被用户取消。"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1647
++#: ../src/camel/camel-mapi-folder.c:1732
+ #, c-format
+ msgid "Cannot get message %s: %s"
+ msgstr "无法得到消息 %s: %s"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1693 ../src/camel/camel-mapi-folder.c:1705
++#: ../src/camel/camel-mapi-folder.c:1778 ../src/camel/camel-mapi-folder.c:1790
+ msgid "Could not get message"
+ msgstr "无法得到消息"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1985
++#: ../src/camel/camel-mapi-folder.c:2070
+ #, c-format
+ msgid "Cannot append message to folder '%s'"
+ msgstr "无法添加信息到文件夹 `%s'"
+ 
+-#: ../src/camel/camel-mapi-folder.c:1992
+-#, fuzzy, c-format
++#: ../src/camel/camel-mapi-folder.c:2077
++#, c-format
+ msgid "Offline. '%s'"
+-msgstr "离线。"
++msgstr "离线。'%s'"
+ 
+-#: ../src/camel/camel-mapi-folder.c:2112
++#: ../src/camel/camel-mapi-folder.c:2198
+ #, c-format
+ msgid "Could not load summary for %s"
+ msgstr "无法载入  %s 的摘要"
+@@ -254,8 +259,7 @@ msgid "Password"
+ msgstr "密码"
+ 
+ #: ../src/camel/camel-mapi-provider.c:94
+-msgid ""
+-"This option will connect to the Openchange server using a plaintext password."
++msgid "This option will connect to the Openchange server using a plaintext password."
+ msgstr "该选项将使用一个纯文本密码连接到 Openchange 服务器。"
+ 
+ #: ../src/camel/camel-mapi-store.c:61
+@@ -296,31 +300,31 @@ msgstr "你没有输入密码"
+ msgid "Unable to authenticate to Exchange MAPI server."
+ msgstr "无法验证到 Exchange MAPI 服务器。"
+ 
+-#: ../src/camel/camel-mapi-store.c:456
++#: ../src/camel/camel-mapi-store.c:484
+ msgid "Cannot create MAPI folders in offline mode."
+ msgstr "无法在离线模式下创建 MAPI 文件夹。"
+ 
+-#: ../src/camel/camel-mapi-store.c:461
++#: ../src/camel/camel-mapi-store.c:489
+ #, c-format
+ msgid "Cannot create new folder `%s'"
+ msgstr "无法创建新文件夹 `%s'"
+ 
+-#: ../src/camel/camel-mapi-store.c:670
++#: ../src/camel/camel-mapi-store.c:698
+ #, c-format
+ msgid "Cannot rename MAPI folder `%s'. Folder does not exist."
+ msgstr "无法重命名 MAPI 文件夹 `%s'。文件夹不存在"
+ 
+-#: ../src/camel/camel-mapi-store.c:681
++#: ../src/camel/camel-mapi-store.c:709
+ #, c-format
+ msgid "Cannot rename MAPI default folder `%s' to `%s'."
+ msgstr "无法重命名 MAPI 默认文件夹 `%s' 为 `%s'"
+ 
+-#: ../src/camel/camel-mapi-store.c:699
++#: ../src/camel/camel-mapi-store.c:727
+ #, c-format
+ msgid "Cannot rename MAPI folder `%s' to `%s'"
+ msgstr "无法重命名 MAPI 文件夹 `%s' 为 `%s'"
+ 
+-#: ../src/camel/camel-mapi-store.c:1227
++#: ../src/camel/camel-mapi-store.c:1250
+ msgid "Folder list not available in offline mode."
+ msgstr "文件夹列表在离线模式下不可用。"
+ 
+@@ -329,20 +333,3 @@ msgstr "文件夹列表在离线模式�
+ msgid "Could not send message."
+ msgstr "无法发送消息。"
+ 
+-#~ msgid "Global Address List / Active Directory"
+-#~ msgstr "全局地址清单 / 活动目录"
+-
+-#~ msgid "_Global Catalog server name:"
+-#~ msgstr "全局目录服务器名称(_G)："
+-
+-#~ msgid "_Limit number of GAL responses: %s"
+-#~ msgstr "限制 GAL 回应次数(_L)：%s"
+-
+-#~ msgid "Cannot rename MAPI folder `%s' to `%s'. Default folder."
+-#~ msgstr "无法重命名 Mapi 文件夹 `%s' 为 `%s'。默认文件夹。"
+-
+-#~ msgid "MAPI server %s"
+-#~ msgstr "MAPI 服务器 %s"
+-
+-#~ msgid "MAPI service for %s on %s"
+-#~ msgstr "在 %2$s 上的 %1$s MAPI 服务"

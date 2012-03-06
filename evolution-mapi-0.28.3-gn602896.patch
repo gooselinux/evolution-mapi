@@ -1,0 +1,22 @@
+commit 7feb7f9ed93b9292a48118ecc8936344cc9afdfa
+Date:   Thu Feb 18 19:47:39 2010 +0100
+
+    Bug #602896 - CC field is shown twice in message
+
+diff -upr evolutionmapi.orig/src/camel/camel-mapi-folder.c evolutionmapi/src/camel/camel-mapi-folder.c
+--- evolutionmapi.orig/src/camel/camel-mapi-folder.c	2010-06-23 12:58:35.000000000 +0200
++++ evolutionmapi/src/camel/camel-mapi-folder.c	2010-06-23 13:01:29.000000000 +0200
+@@ -1412,8 +1412,11 @@ mapi_msg_set_recipient_list (CamelMimeMe
+ 	
+ 	/*Add to message*/
+ 	/*Note : To field is added from PR_TRANSPORT_MESSAGE_HEADERS*/
+-	camel_mime_message_set_recipients(msg, "Cc", cc_addr);
+-	camel_mime_message_set_recipients(msg, "Bcc", bcc_addr);
++	if (!item->header.transport_headers) {
++		camel_mime_message_set_recipients(msg, "To", to_addr);
++		camel_mime_message_set_recipients(msg, "Cc", cc_addr);
++		camel_mime_message_set_recipients(msg, "Bcc", bcc_addr);
++	}
+ 
+ 	/*TODO : Unref *_addr ? */
+ }

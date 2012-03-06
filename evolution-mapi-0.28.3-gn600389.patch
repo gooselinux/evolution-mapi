@@ -1,0 +1,1475 @@
+commit 7e71d71b0cd0bcee7b6d8ad6c5a9420e6b21f567
+Date:   Tue Apr 13 20:20:04 2010 +0200
+
+    Bug #600389 - UTF8 characters in contacts not shown properly
+
+diff -upr evolutionmapi.orig/configure.ac evolutionmapi/configure.ac
+--- evolutionmapi.orig/configure.ac	2010-06-23 13:14:44.000000000 +0200
++++ evolutionmapi/configure.ac	2010-06-23 13:17:39.000000000 +0200
+@@ -124,6 +124,20 @@ AC_SUBST(LIBMAPI_CFLAGS)
+ AC_SUBST(LIBMAPI_LIBS)
+ 
+ dnl ****************************
++dnl Check for windows_to_utf8 function
++dnl ****************************
++AC_MSG_CHECKING([libmapi windows_to_utf8 function])
++save_cflags=$CFLAGS; CFLAGS=$LIBMAPI_CFLAGS
++save_libs=$LIBS; LIBS="$LIBMAPI_LIBS"
++AC_LINK_IFELSE([AC_LANG_PROGRAM(
++	[[#include <libmapi/libmapi.h>]],
++	[[windows_to_utf8 (NULL, NULL)]])],
++	[AC_DEFINE(HAVE_WINDOWS_TO_UTF8, 1, [libmapi provides windows_to_utf8 function]) ac_cv_have_wtu=yes],[ac_cv_have_wtu=no])
++CFLAGS=$save_cflags
++LIBS=$save_libs
++AC_MSG_RESULT([$ac_cv_have_wtu])
++
++dnl ****************************
+ dnl Expose version information
+ dnl ****************************
+ API_VERSION=$EDS_PACKAGE
+diff -upr evolutionmapi.orig/src/account-setup-eplugin/exchange-mapi-account-setup.c evolutionmapi/src/account-setup-eplugin/exchange-mapi-account-setup.c
+--- evolutionmapi.orig/src/account-setup-eplugin/exchange-mapi-account-setup.c	2010-06-23 13:14:44.000000000 +0200
++++ evolutionmapi/src/account-setup-eplugin/exchange-mapi-account-setup.c	2010-06-23 13:21:59.000000000 +0200
+@@ -145,8 +145,12 @@ create_profile_callback (struct SRowSet 
+ 	gtk_tree_view_set_model (GTK_TREE_VIEW (view), GTK_TREE_MODEL (store));
+ 
+ 	for (i = 0; i < rowset->cRows; i++) {
+-		lpProp_fullname = get_SPropValue_SRow(&(rowset->aRow[i]), PR_DISPLAY_NAME);
+-		lpProp_account = get_SPropValue_SRow(&(rowset->aRow[i]), PR_ACCOUNT);
++		lpProp_fullname = get_SPropValue_SRow(&(rowset->aRow[i]), PR_DISPLAY_NAME_UNICODE);
++		if (!lpProp_fullname)
++			lpProp_fullname = get_SPropValue_SRow(&(rowset->aRow[i]), PR_DISPLAY_NAME);
++		lpProp_account = get_SPropValue_SRow(&(rowset->aRow[i]), PR_ACCOUNT_UNICODE);
++		if (!lpProp_account)
++			lpProp_account = get_SPropValue_SRow(&(rowset->aRow[i]), PR_ACCOUNT);
+ 
+ 		if (lpProp_fullname && lpProp_fullname->value.lpszA &&
+ 		    lpProp_account && lpProp_account->value.lpszA) {
+diff -upr evolutionmapi.orig/src/addressbook/e-book-backend-mapi.c evolutionmapi/src/addressbook/e-book-backend-mapi.c
+--- evolutionmapi.orig/src/addressbook/e-book-backend-mapi.c	2010-06-23 13:14:44.000000000 +0200
++++ evolutionmapi/src/addressbook/e-book-backend-mapi.c	2010-06-23 13:36:15.000000000 +0200
+@@ -72,6 +72,69 @@ struct _EBookBackendMAPIPrivate
+ #define LOCK() g_mutex_lock (priv->lock)
+ #define UNLOCK() g_mutex_unlock (priv->lock)
+ 
++/* this is a list of all known book MAPI tag IDs;
++   if you add new add it here too, otherwise it may not be fetched */
++static uint32_t known_book_mapi_ids[] = {
++	PR_ASSISTANT_TELEPHONE_NUMBER_UNICODE,
++	PR_ASSISTANT_UNICODE,
++	PR_BIRTHDAY,
++	PR_BODY,
++	PR_BODY_UNICODE,
++	PR_BUSINESS_FAX_NUMBER_UNICODE,
++	PR_COMPANY_MAIN_PHONE_NUMBER_UNICODE,
++	PR_COMPANY_NAME_UNICODE,
++	PR_COUNTRY_UNICODE,
++	PR_DEPARTMENT_NAME_UNICODE,
++	PR_DISPLAY_NAME_UNICODE,
++	PR_EMS_AB_MANAGER_T_UNICODE,
++	PR_FID,
++	PR_GIVEN_NAME_UNICODE,
++	PR_HASATTACH,
++	PR_HOME_ADDRESS_CITY_UNICODE,
++	PR_HOME_ADDRESS_COUNTRY_UNICODE,
++	PR_HOME_ADDRESS_POSTAL_CODE_UNICODE,
++	PR_HOME_ADDRESS_POST_OFFICE_BOX_UNICODE,
++	PR_HOME_ADDRESS_STATE_OR_PROVINCE_UNICODE,
++	PR_HOME_FAX_NUMBER_UNICODE,
++	PR_HOME_TELEPHONE_NUMBER_UNICODE,
++	PR_INSTANCE_NUM,
++	PR_INST_ID,
++	PR_LAST_MODIFICATION_TIME,
++	PR_LOCALITY_UNICODE,
++	PR_MANAGER_NAME_UNICODE,
++	PR_MESSAGE_CLASS,
++	PR_MID,
++	PR_MOBILE_TELEPHONE_NUMBER_UNICODE,
++	PR_NICKNAME_UNICODE,
++	PR_NORMALIZED_SUBJECT_UNICODE,
++	PR_OFFICE_LOCATION_UNICODE,
++	PR_OFFICE_TELEPHONE_NUMBER_UNICODE,
++	PR_PAGER_TELEPHONE_NUMBER_UNICODE,
++	PR_POSTAL_CODE_UNICODE,
++	PR_POST_OFFICE_BOX_UNICODE,
++	PR_PROFESSION_UNICODE,
++	PR_RULE_MSG_NAME,
++	PR_RULE_MSG_PROVIDER,
++	PR_SPOUSE_NAME_UNICODE,
++	PR_STATE_OR_PROVINCE_UNICODE,
++	PR_SUBJECT_UNICODE,
++	PR_SURNAME_UNICODE,
++	PR_TITLE_UNICODE,
++	PR_WEDDING_ANNIVERSARY,
++	PROP_TAG(PT_UNICODE, 0x801a),
++	PROP_TAG(PT_UNICODE, 0x801c),
++	PROP_TAG(PT_UNICODE, 0x801f),
++	PROP_TAG(PT_UNICODE, 0x802b),
++	PROP_TAG(PT_UNICODE, 0x8062),
++	PROP_TAG(PT_UNICODE, 0x8084),
++	PROP_TAG(PT_UNICODE, 0x8093),
++	PROP_TAG(PT_UNICODE, 0x8094),
++	PROP_TAG(PT_UNICODE, 0x80a3),
++	PROP_TAG(PT_UNICODE, 0x80a4),
++	PROP_TAG(PT_UNICODE, 0x80d8),
++	PROP_TAG(PT_UNICODE, 0x812c)
++};
++
+ #define ELEMENT_TYPE_SIMPLE 0x01
+ #define ELEMENT_TYPE_COMPLEX 0x02 /* fields which require explicit functions to set values into EContact and EGwItem */
+ 
+@@ -93,52 +156,50 @@ static const struct field_element_mappin
+ 
+ 	} mappings [] = { 
+ 
+-	{ E_CONTACT_UID, PT_STRING8, 0, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_UID, PT_UNICODE, 0, ELEMENT_TYPE_SIMPLE},
+ 	{ E_CONTACT_REV, PT_SYSTIME, PR_LAST_MODIFICATION_TIME, ELEMENT_TYPE_SIMPLE},
+ 		
+-	{ E_CONTACT_FILE_AS, PT_STRING8, PR_EMS_AB_MANAGER_T, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_FULL_NAME, PT_STRING8, PR_DISPLAY_NAME, ELEMENT_TYPE_SIMPLE },
+-	{ E_CONTACT_GIVEN_NAME, PT_STRING8, PR_GIVEN_NAME, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_FAMILY_NAME, PT_STRING8, PR_SURNAME , ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_NICKNAME, PT_STRING8, PR_NICKNAME, ELEMENT_TYPE_SIMPLE },
+-
+-	{ E_CONTACT_EMAIL_1, PT_STRING8, PROP_TAG(PT_STRING8, 0x8084), ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_EMAIL_2, PT_STRING8, PROP_TAG(PT_STRING8, 0x8093), ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_EMAIL_3, PT_STRING8, PROP_TAG(PT_STRING8, 0x80a3), ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_IM_AIM,  PT_STRING8, PROP_TAG(PT_UNICODE, 0x8062), ELEMENT_TYPE_COMPLEX},	
+-		
+-	{ E_CONTACT_PHONE_BUSINESS, PT_STRING8, PR_OFFICE_TELEPHONE_NUMBER, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_PHONE_HOME, PT_STRING8, PR_HOME_TELEPHONE_NUMBER, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_PHONE_MOBILE, PT_STRING8, PR_MOBILE_TELEPHONE_NUMBER, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_PHONE_HOME_FAX, PT_STRING8, PR_HOME_FAX_NUMBER ,ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_PHONE_BUSINESS_FAX, PT_STRING8, PR_BUSINESS_FAX_NUMBER,ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_PHONE_PAGER, PT_STRING8, PR_PAGER_TELEPHONE_NUMBER,ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_PHONE_ASSISTANT, PT_STRING8, PR_ASSISTANT_TELEPHONE_NUMBER ,ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_PHONE_COMPANY, PT_STRING8, PR_COMPANY_MAIN_PHONE_NUMBER ,ELEMENT_TYPE_SIMPLE},
+-
+-	{ E_CONTACT_HOMEPAGE_URL, PT_STRING8, 0x802b001e, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_FREEBUSY_URL, PT_STRING8, 0x80d8001e, ELEMENT_TYPE_SIMPLE},
+-
+-	{ E_CONTACT_ROLE, PT_STRING8, PR_PROFESSION, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_TITLE, PT_STRING8, PR_TITLE, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_ORG, PT_STRING8, PR_COMPANY_NAME, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_ORG_UNIT, PT_STRING8, PR_DEPARTMENT_NAME,ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_MANAGER, PT_STRING8, PR_MANAGER_NAME, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_ASSISTANT, PT_STRING8, PR_ASSISTANT, ELEMENT_TYPE_SIMPLE},
+-		
+-	{ E_CONTACT_OFFICE, PT_STRING8, PR_OFFICE_LOCATION, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_SPOUSE, PT_STRING8, PR_SPOUSE_NAME, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_FILE_AS, PT_UNICODE, PR_EMS_AB_MANAGER_T_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_FULL_NAME, PT_UNICODE, PR_DISPLAY_NAME_UNICODE, ELEMENT_TYPE_SIMPLE },
++	{ E_CONTACT_GIVEN_NAME, PT_UNICODE, PR_GIVEN_NAME_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_FAMILY_NAME, PT_UNICODE, PR_SURNAME_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_NICKNAME, PT_UNICODE, PR_NICKNAME_UNICODE, ELEMENT_TYPE_SIMPLE },
++
++	{ E_CONTACT_EMAIL_1, PT_UNICODE, PROP_TAG(PT_UNICODE, 0x8084), ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_EMAIL_2, PT_UNICODE, PROP_TAG(PT_UNICODE, 0x8093), ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_EMAIL_3, PT_UNICODE, PROP_TAG(PT_UNICODE, 0x80a3), ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_IM_AIM,  PT_UNICODE, PROP_TAG(PT_UNICODE, 0x8062), ELEMENT_TYPE_COMPLEX},
++
++	{ E_CONTACT_PHONE_BUSINESS, PT_UNICODE, PR_OFFICE_TELEPHONE_NUMBER_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_PHONE_HOME, PT_UNICODE, PR_HOME_TELEPHONE_NUMBER_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_PHONE_MOBILE, PT_UNICODE, PR_MOBILE_TELEPHONE_NUMBER_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_PHONE_HOME_FAX, PT_UNICODE, PR_HOME_FAX_NUMBER_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_PHONE_BUSINESS_FAX, PT_UNICODE, PR_BUSINESS_FAX_NUMBER_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_PHONE_PAGER, PT_UNICODE, PR_PAGER_TELEPHONE_NUMBER_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_PHONE_ASSISTANT, PT_UNICODE, PR_ASSISTANT_TELEPHONE_NUMBER_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_PHONE_COMPANY, PT_UNICODE, PR_COMPANY_MAIN_PHONE_NUMBER_UNICODE, ELEMENT_TYPE_SIMPLE},
++
++	{ E_CONTACT_HOMEPAGE_URL, PT_UNICODE, PROP_TAG(PT_UNICODE, 0x802b), ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_FREEBUSY_URL, PT_UNICODE, PROP_TAG(PT_UNICODE, 0x80d8), ELEMENT_TYPE_SIMPLE},
++
++	{ E_CONTACT_ROLE, PT_UNICODE, PR_PROFESSION_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_TITLE, PT_UNICODE, PR_TITLE_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_ORG, PT_UNICODE, PR_COMPANY_NAME_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_ORG_UNIT, PT_UNICODE, PR_DEPARTMENT_NAME_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_MANAGER, PT_UNICODE, PR_MANAGER_NAME_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_ASSISTANT, PT_UNICODE, PR_ASSISTANT_UNICODE, ELEMENT_TYPE_SIMPLE},
++
++	{ E_CONTACT_OFFICE, PT_UNICODE, PR_OFFICE_LOCATION_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_SPOUSE, PT_UNICODE, PR_SPOUSE_NAME_UNICODE, ELEMENT_TYPE_SIMPLE},
+ 		
+ 	{ E_CONTACT_BIRTH_DATE,  PT_SYSTIME, PR_BIRTHDAY, ELEMENT_TYPE_COMPLEX},
+ 	{ E_CONTACT_ANNIVERSARY, PT_SYSTIME, PR_WEDDING_ANNIVERSARY, ELEMENT_TYPE_COMPLEX},
+ 		  
+-	{ E_CONTACT_NOTE, PT_STRING8, PR_BODY, ELEMENT_TYPE_SIMPLE},
+-		
++	{ E_CONTACT_NOTE, PT_UNICODE, PR_BODY_UNICODE, ELEMENT_TYPE_SIMPLE},
+ 
+-	{ E_CONTACT_ADDRESS_HOME, PT_STRING8, 0x801a001e, ELEMENT_TYPE_COMPLEX},
+-	{ E_CONTACT_ADDRESS_WORK, PT_STRING8, 0x801c001e, ELEMENT_TYPE_COMPLEX},
++	{ E_CONTACT_ADDRESS_HOME, PT_UNICODE, PROP_TAG(PT_UNICODE, 0x801a), ELEMENT_TYPE_COMPLEX},
++	{ E_CONTACT_ADDRESS_WORK, PT_UNICODE, PROP_TAG(PT_UNICODE, 0x801c), ELEMENT_TYPE_COMPLEX},
+ //		{ E_CONTACT_BOOK_URI, ELEMENT_TYPE_SIMPLE, "book_uri"}
+-//		{ E_CONTACT_EMAIL, PT_STRING8, 0x8084001e},
+ //		{ E_CONTACT_CATEGORIES, },		
+ 	};
+ 
+@@ -211,8 +272,8 @@ build_restriction_emails_contains (struc
+ 
+ 	res->rt = RES_PROPERTY;
+ 	res->res.resProperty.relop = RES_PROPERTY;
+-	res->res.resProperty.ulPropTag = 0x801f001e; /* EMAIL */
+-	res->res.resProperty.lpProp.ulPropTag = 0x801f001e; /* EMAIL*/
++	res->res.resProperty.ulPropTag = PROP_TAG(PT_UNICODE, 0x801f); /* EMAIL */
++	res->res.resProperty.lpProp.ulPropTag = PROP_TAG(PT_UNICODE, 0x801f); /* EMAIL*/
+ 	res->res.resProperty.lpProp.value.lpszA = email;
+ 
+ 	return TRUE;
+@@ -251,32 +312,32 @@ build_multiple_restriction_emails_contai
+ 
+ 	or_res[0].rt = RES_CONTENT;
+ 	or_res[0].res.resContent.fuzzy = FL_FULLSTRING | FL_IGNORECASE;
+-	or_res[0].res.resContent.ulPropTag = PR_EMS_AB_MANAGER_T;
++	or_res[0].res.resContent.ulPropTag = PR_EMS_AB_MANAGER_T_UNICODE;
+ 	or_res[0].res.resContent.lpProp.value.lpszA = email;
+ 
+ 	or_res[1].rt = RES_CONTENT;
+ 	or_res[1].res.resContent.fuzzy = FL_FULLSTRING | FL_IGNORECASE;
+-	or_res[1].res.resContent.ulPropTag = PR_DISPLAY_NAME;
++	or_res[1].res.resContent.ulPropTag = PR_DISPLAY_NAME_UNICODE;
+ 	or_res[1].res.resContent.lpProp.value.lpszA = email;
+ 
+ 	or_res[2].rt = RES_CONTENT;
+ 	or_res[2].res.resContent.fuzzy = FL_FULLSTRING | FL_IGNORECASE;
+-	or_res[2].res.resContent.ulPropTag = PR_GIVEN_NAME;
++	or_res[2].res.resContent.ulPropTag = PR_GIVEN_NAME_UNICODE;
+ 	or_res[2].res.resContent.lpProp.value.lpszA = email;
+ 
+ 	or_res[3].rt = RES_CONTENT;
+ 	or_res[3].res.resContent.fuzzy = FL_FULLSTRING | FL_IGNORECASE;
+-	or_res[3].res.resContent.ulPropTag = 0x8084001e;
++	or_res[3].res.resContent.ulPropTag = PROP_TAG(PT_UNICODE, 0x8084);
+ 	or_res[3].res.resContent.lpProp.value.lpszA = email;
+ 
+ 	or_res[4].rt = RES_CONTENT;
+ 	or_res[4].res.resContent.fuzzy = FL_FULLSTRING | FL_IGNORECASE;
+-	or_res[4].res.resContent.ulPropTag = 0x8094001e;
++	or_res[4].res.resContent.ulPropTag = PROP_TAG(PT_UNICODE, 0x8094);
+ 	or_res[4].res.resContent.lpProp.value.lpszA = email;
+ 
+ 	or_res[5].rt = RES_CONTENT;
+ 	or_res[5].res.resContent.fuzzy = FL_FULLSTRING | FL_IGNORECASE;
+-	or_res[5].res.resContent.ulPropTag = 0x80a4001e;
++	or_res[5].res.resContent.ulPropTag = PROP_TAG(PT_UNICODE, 0x80a4);
+ 	or_res[5].res.resContent.lpProp.value.lpszA = email;
+ 
+ 	res = g_new0 (struct mapi_SRestriction, 1);
+@@ -461,9 +522,9 @@ mapi_book_build_props (struct SPropValue
+ 	props = g_new0 (struct SPropValue, 50); //FIXME: Correct value tbd
+ 	set_str_value ( E_CONTACT_FILE_AS, SPropTagArray->aulPropTag[0]);
+ 
+-	set_str_value (E_CONTACT_FULL_NAME, PR_DISPLAY_NAME);
++	set_str_value (E_CONTACT_FULL_NAME, PR_DISPLAY_NAME_UNICODE);
+ 	set_SPropValue_proptag(&props[i++], PR_MESSAGE_CLASS, (const void *)IPM_CONTACT);
+-	set_str_value (E_CONTACT_FILE_AS, PR_NORMALIZED_SUBJECT);
++	set_str_value (E_CONTACT_FILE_AS, PR_NORMALIZED_SUBJECT_UNICODE);
+ 	set_str_value (E_CONTACT_EMAIL_1,  SPropTagArray->aulPropTag[1]);
+ //	set_str_value (E_CONTACT_EMAIL_1,  SPropTagArray->aulPropTag[2]);
+ 	set_str_value (E_CONTACT_FILE_AS,  SPropTagArray->aulPropTag[5]);
+@@ -477,29 +538,28 @@ mapi_book_build_props (struct SPropValue
+ //	set_str_value ( E_CONTACT_EMAIL_3, SPropTagArray->aulPropTag[12]);
+ 	
+ 	set_str_value (E_CONTACT_HOMEPAGE_URL, SPropTagArray->aulPropTag[6]);
+-	set_str_value (E_CONTACT_FREEBUSY_URL, 0x812C001E);
++	set_str_value (E_CONTACT_FREEBUSY_URL, PROP_TAG(PT_UNICODE, 0x812c));
+ 	
++	set_str_value ( E_CONTACT_PHONE_BUSINESS, PR_OFFICE_TELEPHONE_NUMBER_UNICODE);
++	set_str_value ( E_CONTACT_PHONE_HOME, PR_HOME_TELEPHONE_NUMBER_UNICODE);
++	set_str_value ( E_CONTACT_PHONE_MOBILE, PR_MOBILE_TELEPHONE_NUMBER_UNICODE);
++	set_str_value ( E_CONTACT_PHONE_HOME_FAX, PR_HOME_FAX_NUMBER_UNICODE);
++	set_str_value ( E_CONTACT_PHONE_BUSINESS_FAX, PR_BUSINESS_FAX_NUMBER_UNICODE);
++	set_str_value ( E_CONTACT_PHONE_PAGER, PR_PAGER_TELEPHONE_NUMBER_UNICODE);
++	set_str_value ( E_CONTACT_PHONE_ASSISTANT, PR_ASSISTANT_TELEPHONE_NUMBER_UNICODE);
++	set_str_value ( E_CONTACT_PHONE_COMPANY, PR_COMPANY_MAIN_PHONE_NUMBER_UNICODE);
++
++	set_str_value (E_CONTACT_MANAGER, PR_MANAGER_NAME_UNICODE);
++	set_str_value (E_CONTACT_ASSISTANT, PR_ASSISTANT_UNICODE);
++	set_str_value (E_CONTACT_ORG, PR_COMPANY_NAME_UNICODE);
++	set_str_value (E_CONTACT_ORG_UNIT, PR_DEPARTMENT_NAME_UNICODE);
++	set_str_value (E_CONTACT_ROLE, PR_PROFESSION_UNICODE);
++	set_str_value (E_CONTACT_TITLE, PR_TITLE_UNICODE);
+ 
+-	set_str_value ( E_CONTACT_PHONE_BUSINESS, PR_OFFICE_TELEPHONE_NUMBER);
+-	set_str_value ( E_CONTACT_PHONE_HOME, PR_HOME_TELEPHONE_NUMBER);
+-	set_str_value ( E_CONTACT_PHONE_MOBILE, PR_MOBILE_TELEPHONE_NUMBER);
+-	set_str_value ( E_CONTACT_PHONE_HOME_FAX, PR_HOME_FAX_NUMBER);
+-	set_str_value ( E_CONTACT_PHONE_BUSINESS_FAX, PR_BUSINESS_FAX_NUMBER);
+-	set_str_value ( E_CONTACT_PHONE_PAGER, PR_PAGER_TELEPHONE_NUMBER);
+-	set_str_value ( E_CONTACT_PHONE_ASSISTANT, PR_ASSISTANT_TELEPHONE_NUMBER);
+-	set_str_value ( E_CONTACT_PHONE_COMPANY, PR_COMPANY_MAIN_PHONE_NUMBER);
+-
+-	set_str_value (E_CONTACT_MANAGER, PR_MANAGER_NAME);
+-	set_str_value (E_CONTACT_ASSISTANT, PR_ASSISTANT);
+-	set_str_value (E_CONTACT_ORG, PR_COMPANY_NAME);
+-	set_str_value (E_CONTACT_ORG_UNIT, PR_DEPARTMENT_NAME);
+-	set_str_value (E_CONTACT_ROLE, PR_PROFESSION);
+-	set_str_value (E_CONTACT_TITLE, PR_TITLE);
+-
+-	set_str_value (E_CONTACT_OFFICE, PR_OFFICE_LOCATION);
+-	set_str_value (E_CONTACT_SPOUSE, PR_SPOUSE_NAME);
++	set_str_value (E_CONTACT_OFFICE, PR_OFFICE_LOCATION_UNICODE);
++	set_str_value (E_CONTACT_SPOUSE, PR_SPOUSE_NAME_UNICODE);
+ 
+-	set_str_value (E_CONTACT_NOTE, PR_BODY);
++	set_str_value (E_CONTACT_NOTE, PR_BODY_UNICODE);
+ 
+ 	//BDAY AND ANNV
+ 	if (e_contact_get (contact, E_CONTACT_BIRTH_DATE)) {
+@@ -545,11 +605,11 @@ mapi_book_build_props (struct SPropValue
+ 
+ 		contact_addr = e_contact_get (contact, E_CONTACT_ADDRESS_HOME);
+ 		set_SPropValue_proptag (&props[i++], SPropTagArray->aulPropTag[8], contact_addr->street);
+-		set_SPropValue_proptag (&props[i++], PR_HOME_ADDRESS_POST_OFFICE_BOX, contact_addr->ext);
+-		set_SPropValue_proptag (&props[i++], PR_HOME_ADDRESS_CITY, contact_addr->locality);
+-		set_SPropValue_proptag (&props[i++], PR_HOME_ADDRESS_STATE_OR_PROVINCE, contact_addr->region);
+-		set_SPropValue_proptag (&props[i++], PR_HOME_ADDRESS_POSTAL_CODE, contact_addr->code);
+-		set_SPropValue_proptag (&props[i++], PR_HOME_ADDRESS_COUNTRY, contact_addr->country);				
++		set_SPropValue_proptag (&props[i++], PR_HOME_ADDRESS_POST_OFFICE_BOX_UNICODE, contact_addr->ext);
++		set_SPropValue_proptag (&props[i++], PR_HOME_ADDRESS_CITY_UNICODE, contact_addr->locality);
++		set_SPropValue_proptag (&props[i++], PR_HOME_ADDRESS_STATE_OR_PROVINCE_UNICODE, contact_addr->region);
++		set_SPropValue_proptag (&props[i++], PR_HOME_ADDRESS_POSTAL_CODE_UNICODE, contact_addr->code);
++		set_SPropValue_proptag (&props[i++], PR_HOME_ADDRESS_COUNTRY_UNICODE, contact_addr->country);
+ 	}
+ 
+ 	if (e_contact_get (contact, E_CONTACT_ADDRESS_WORK)) {
+@@ -557,11 +617,11 @@ mapi_book_build_props (struct SPropValue
+ 
+ 		contact_addr = e_contact_get (contact, E_CONTACT_ADDRESS_WORK);
+ 		set_SPropValue_proptag (&props[i++], SPropTagArray->aulPropTag[9], contact_addr->street);
+-		set_SPropValue_proptag (&props[i++], PR_POST_OFFICE_BOX, contact_addr->ext);
+-		set_SPropValue_proptag (&props[i++], PR_LOCALITY, contact_addr->locality);
+-		set_SPropValue_proptag (&props[i++], PR_STATE_OR_PROVINCE, contact_addr->region);
+-		set_SPropValue_proptag (&props[i++], PR_POSTAL_CODE, contact_addr->code);
+-		set_SPropValue_proptag (&props[i++], PR_COUNTRY, contact_addr->country);				
++		set_SPropValue_proptag (&props[i++], PR_POST_OFFICE_BOX_UNICODE, contact_addr->ext);
++		set_SPropValue_proptag (&props[i++], PR_LOCALITY_UNICODE, contact_addr->locality);
++		set_SPropValue_proptag (&props[i++], PR_STATE_OR_PROVINCE_UNICODE, contact_addr->region);
++		set_SPropValue_proptag (&props[i++], PR_POSTAL_CODE_UNICODE, contact_addr->code);
++		set_SPropValue_proptag (&props[i++], PR_COUNTRY_UNICODE, contact_addr->country);
+ 	}
+ 
+ 	
+@@ -824,7 +884,7 @@ e_book_backend_mapi_get_contact (EBookBa
+ 			
+ 			exchange_mapi_util_mapi_ids_from_uid (id, &fid, &mid);
+ 			exchange_mapi_connection_fetch_item (priv->fid, mid, 
+-							NULL, 0, 
++							known_book_mapi_ids, G_N_ELEMENTS (known_book_mapi_ids),
+ 							NULL, NULL, 
+ 							create_contact_item, contact, 
+ 							MAPI_OPTIONS_FETCH_ALL);
+@@ -891,7 +951,7 @@ static const uint32_t GetPropsList[] = {
+ 	PR_MID,
+ 	PR_INST_ID,
+ 	PR_INSTANCE_NUM,
+-	PR_SUBJECT,
++	PR_SUBJECT_UNICODE,
+ 	PR_MESSAGE_CLASS,
+ 	PR_HASATTACH,
+ /* FIXME: is this tag fit to check if a recipient table exists or not ? */
+@@ -904,7 +964,7 @@ static const uint16_t n_GetPropsList = G
+ gboolean
+ mapi_book_build_name_id_for_getprops (struct mapi_nameid *nameid, gpointer data)
+ {
+-	mapi_nameid_lid_add(nameid, 0x8084, PSETID_Address); /* PT_STRING8 - EmailOriginalDisplayName */
++	mapi_nameid_lid_add(nameid, 0x8084, PSETID_Address); /* PT_UNICODE - EmailOriginalDisplayName */
+ //	mapi_nameid_lid_add(nameid, 0x8020, PSETID_Address);
+ //	mapi_nameid_lid_add(nameid, 0x8021, PSETID_Address);
+ 	mapi_nameid_lid_add(nameid, 0x8094, PSETID_Address);
+@@ -1042,8 +1102,8 @@ emapidump_contact(struct mapi_SPropValue
+ 		gpointer value;
+ 
+ 		/* can cast it, no writing to the value; and it'll be freed not before the end of this function */
+-		value = (gpointer) find_mapi_SPropValue_data (properties, mappings[i].mapi_id);
+-		if (mappings[i].element_type == PT_STRING8 && mappings[i].contact_type == ELEMENT_TYPE_SIMPLE) {
++		value = (gpointer) exchange_mapi_util_find_array_propval (properties, mappings[i].mapi_id);
++		if (mappings[i].element_type == PT_UNICODE && mappings[i].contact_type == ELEMENT_TYPE_SIMPLE) {
+ 			if (value)
+ 				e_contact_set (contact, mappings[i].field_id, value);
+ 		} else if (mappings[i].contact_type == ELEMENT_TYPE_SIMPLE) {
+@@ -1096,20 +1156,20 @@ emapidump_contact(struct mapi_SPropValue
+ 					contact_addr.address_format = NULL;
+ 					contact_addr.po = NULL;
+ 					contact_addr.street = (char *)value;
+-					contact_addr.ext = (char *)find_mapi_SPropValue_data (properties, PR_HOME_ADDRESS_POST_OFFICE_BOX);
+-					contact_addr.locality = (char *)find_mapi_SPropValue_data (properties, PR_HOME_ADDRESS_CITY);
+-					contact_addr.region = (char *)find_mapi_SPropValue_data (properties, PR_HOME_ADDRESS_STATE_OR_PROVINCE);
+-					contact_addr.code = (char *)find_mapi_SPropValue_data (properties, PR_HOME_ADDRESS_POSTAL_CODE);
+-					contact_addr.country = (char *)find_mapi_SPropValue_data (properties, PR_HOME_ADDRESS_COUNTRY);
++					contact_addr.ext = (gchar *)exchange_mapi_util_find_array_propval (properties, PR_HOME_ADDRESS_POST_OFFICE_BOX_UNICODE);
++					contact_addr.locality = (gchar *)exchange_mapi_util_find_array_propval (properties, PR_HOME_ADDRESS_CITY_UNICODE);
++					contact_addr.region = (gchar *)exchange_mapi_util_find_array_propval (properties, PR_HOME_ADDRESS_STATE_OR_PROVINCE_UNICODE);
++					contact_addr.code = (gchar *)exchange_mapi_util_find_array_propval (properties, PR_HOME_ADDRESS_POSTAL_CODE_UNICODE);
++					contact_addr.country = (gchar *)exchange_mapi_util_find_array_propval (properties, PR_HOME_ADDRESS_COUNTRY_UNICODE);
+ 				} else {
+ 					contact_addr.address_format = NULL;
+ 					contact_addr.po = NULL;
+ 					contact_addr.street = (char *)value;
+-					contact_addr.ext = (char *)find_mapi_SPropValue_data (properties, PR_POST_OFFICE_BOX);
+-					contact_addr.locality = (char *)find_mapi_SPropValue_data (properties, PR_LOCALITY);
+-					contact_addr.region = (char *)find_mapi_SPropValue_data (properties, PR_STATE_OR_PROVINCE);
+-					contact_addr.code = (char *)find_mapi_SPropValue_data (properties, PR_POSTAL_CODE);
+-					contact_addr.country = (char *)find_mapi_SPropValue_data (properties, PR_COUNTRY);
++					contact_addr.ext = (gchar *)exchange_mapi_util_find_array_propval (properties, PR_POST_OFFICE_BOX_UNICODE);
++					contact_addr.locality = (gchar *)exchange_mapi_util_find_array_propval (properties, PR_LOCALITY_UNICODE);
++					contact_addr.region = (gchar *)exchange_mapi_util_find_array_propval (properties, PR_STATE_OR_PROVINCE_UNICODE);
++					contact_addr.code = (gchar *)exchange_mapi_util_find_array_propval (properties, PR_POSTAL_CODE_UNICODE);
++					contact_addr.country = (gchar *)exchange_mapi_util_find_array_propval (properties, PR_COUNTRY_UNICODE);
+ 				}
+ 				e_contact_set (contact, mappings[i].field_id, &contact_addr);
+ 			}
+@@ -1334,7 +1394,7 @@ book_view_thread (gpointer data)
+                 	}
+ 		} else {
+ 			if (!exchange_mapi_connection_fetch_items (priv->fid, NULL, NULL,
+-							NULL, 0, 
++							known_book_mapi_ids, G_N_ELEMENTS (known_book_mapi_ids),
+ 							NULL, NULL, 
+ 							create_contact_cb, book_view, 
+ 							MAPI_OPTIONS_FETCH_ALL)) {
+@@ -1443,7 +1503,7 @@ build_cache (EBookBackendMAPI *ebmapi)
+ 	e_file_cache_freeze_changes (E_FILE_CACHE (priv->cache));
+ 	
+ 	if (!exchange_mapi_connection_fetch_items (priv->fid, NULL, NULL,
+-						NULL, 0, 
++						known_book_mapi_ids, G_N_ELEMENTS (known_book_mapi_ids),
+ 						NULL, NULL, 
+ 						cache_contact_cb, ebmapi, 
+ 						MAPI_OPTIONS_FETCH_ALL)) {
+@@ -1488,7 +1548,7 @@ update_cache (EBookBackendMAPI *ebmapi)
+ 	e_file_cache_freeze_changes (E_FILE_CACHE (priv->cache));
+ 	
+ 	if (!exchange_mapi_connection_fetch_items ( priv->fid, &res, NULL,
+-						NULL, 0, 
++						known_book_mapi_ids, G_N_ELEMENTS (known_book_mapi_ids),
+ 						NULL, NULL, 
+ 						cache_contact_cb, ebmapi, 
+ 						MAPI_OPTIONS_FETCH_ALL)) {
+diff -upr evolutionmapi.orig/src/addressbook/e-book-backend-mapi-gal.c evolutionmapi/src/addressbook/e-book-backend-mapi-gal.c
+--- evolutionmapi.orig/src/addressbook/e-book-backend-mapi-gal.c	2010-06-23 13:14:44.000000000 +0200
++++ evolutionmapi/src/addressbook/e-book-backend-mapi-gal.c	2010-06-23 13:27:17.000000000 +0200
+@@ -40,52 +40,50 @@ static const struct field_element_mappin
+ 
+ 	} mappings [] = { 
+ 
+-	{ E_CONTACT_UID, PT_STRING8, 0, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_UID, PT_UNICODE, 0, ELEMENT_TYPE_SIMPLE},
+ 	{ E_CONTACT_REV, PT_SYSTIME, PR_LAST_MODIFICATION_TIME, ELEMENT_TYPE_SIMPLE},
+ 		
+-	{ E_CONTACT_FILE_AS, PT_STRING8, PR_EMS_AB_MANAGER_T, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_FULL_NAME, PT_STRING8, PR_DISPLAY_NAME, ELEMENT_TYPE_SIMPLE },
+-	{ E_CONTACT_GIVEN_NAME, PT_STRING8, PR_GIVEN_NAME, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_FAMILY_NAME, PT_STRING8, PR_SURNAME , ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_NICKNAME, PT_STRING8, PR_NICKNAME, ELEMENT_TYPE_SIMPLE },
+-
+-	{ E_CONTACT_EMAIL_1, PT_STRING8, PROP_TAG(PT_UNICODE, 0x8084), ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_EMAIL_2, PT_STRING8, PROP_TAG(PT_UNICODE, 0x8094), ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_EMAIL_3, PT_STRING8, PROP_TAG(PT_UNICODE, 0x80a4), ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_IM_AIM,  PT_STRING8, PROP_TAG(PT_UNICODE, 0x8062), ELEMENT_TYPE_COMPLEX},	
+-		
+-	{ E_CONTACT_PHONE_BUSINESS, PT_STRING8, PR_OFFICE_TELEPHONE_NUMBER, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_PHONE_HOME, PT_STRING8, PR_HOME_TELEPHONE_NUMBER, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_PHONE_MOBILE, PT_STRING8, PR_MOBILE_TELEPHONE_NUMBER, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_PHONE_HOME_FAX, PT_STRING8, PR_HOME_FAX_NUMBER ,ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_PHONE_BUSINESS_FAX, PT_STRING8, PR_BUSINESS_FAX_NUMBER,ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_PHONE_PAGER, PT_STRING8, PR_PAGER_TELEPHONE_NUMBER,ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_PHONE_ASSISTANT, PT_STRING8, PR_ASSISTANT_TELEPHONE_NUMBER ,ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_PHONE_COMPANY, PT_STRING8, PR_COMPANY_MAIN_PHONE_NUMBER ,ELEMENT_TYPE_SIMPLE},
+-
+-	{ E_CONTACT_HOMEPAGE_URL, PT_STRING8, 0x802b001e, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_FREEBUSY_URL, PT_STRING8, 0x80d8001e, ELEMENT_TYPE_SIMPLE},
+-
+-	{ E_CONTACT_ROLE, PT_STRING8, PR_PROFESSION, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_TITLE, PT_STRING8, PR_TITLE, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_ORG, PT_STRING8, PR_COMPANY_NAME, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_ORG_UNIT, PT_STRING8, PR_DEPARTMENT_NAME,ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_MANAGER, PT_STRING8, PR_MANAGER_NAME, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_ASSISTANT, PT_STRING8, PR_ASSISTANT, ELEMENT_TYPE_SIMPLE},
+-		
+-	{ E_CONTACT_OFFICE, PT_STRING8, PR_OFFICE_LOCATION, ELEMENT_TYPE_SIMPLE},
+-	{ E_CONTACT_SPOUSE, PT_STRING8, PR_SPOUSE_NAME, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_FILE_AS, PT_UNICODE, PR_EMS_AB_MANAGER_T_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_FULL_NAME, PT_UNICODE, PR_DISPLAY_NAME_UNICODE, ELEMENT_TYPE_SIMPLE },
++	{ E_CONTACT_GIVEN_NAME, PT_UNICODE, PR_GIVEN_NAME_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_FAMILY_NAME, PT_UNICODE, PR_SURNAME_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_NICKNAME, PT_UNICODE, PR_NICKNAME_UNICODE, ELEMENT_TYPE_SIMPLE },
++
++	{ E_CONTACT_EMAIL_1, PT_UNICODE, PROP_TAG(PT_UNICODE, 0x8084), ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_EMAIL_2, PT_UNICODE, PROP_TAG(PT_UNICODE, 0x8094), ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_EMAIL_3, PT_UNICODE, PROP_TAG(PT_UNICODE, 0x80a4), ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_IM_AIM,  PT_UNICODE, PROP_TAG(PT_UNICODE, 0x8062), ELEMENT_TYPE_COMPLEX},
++
++	{ E_CONTACT_PHONE_BUSINESS, PT_UNICODE, PR_OFFICE_TELEPHONE_NUMBER_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_PHONE_HOME, PT_UNICODE, PR_HOME_TELEPHONE_NUMBER_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_PHONE_MOBILE, PT_UNICODE, PR_MOBILE_TELEPHONE_NUMBER_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_PHONE_HOME_FAX, PT_UNICODE, PR_HOME_FAX_NUMBER_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_PHONE_BUSINESS_FAX, PT_UNICODE, PR_BUSINESS_FAX_NUMBER_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_PHONE_PAGER, PT_UNICODE, PR_PAGER_TELEPHONE_NUMBER_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_PHONE_ASSISTANT, PT_UNICODE, PR_ASSISTANT_TELEPHONE_NUMBER_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_PHONE_COMPANY, PT_UNICODE, PR_COMPANY_MAIN_PHONE_NUMBER_UNICODE, ELEMENT_TYPE_SIMPLE},
++
++	{ E_CONTACT_HOMEPAGE_URL, PT_UNICODE, PROP_TAG(PT_UNICODE, 0x802b), ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_FREEBUSY_URL, PT_UNICODE, PROP_TAG(PT_UNICODE, 0x80d8), ELEMENT_TYPE_SIMPLE},
++
++	{ E_CONTACT_ROLE, PT_UNICODE, PR_PROFESSION_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_TITLE, PT_UNICODE, PR_TITLE_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_ORG, PT_UNICODE, PR_COMPANY_NAME_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_ORG_UNIT, PT_UNICODE, PR_DEPARTMENT_NAME_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_MANAGER, PT_UNICODE, PR_MANAGER_NAME_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_ASSISTANT, PT_UNICODE, PR_ASSISTANT_UNICODE, ELEMENT_TYPE_SIMPLE},
++
++	{ E_CONTACT_OFFICE, PT_UNICODE, PR_OFFICE_LOCATION_UNICODE, ELEMENT_TYPE_SIMPLE},
++	{ E_CONTACT_SPOUSE, PT_UNICODE, PR_SPOUSE_NAME_UNICODE, ELEMENT_TYPE_SIMPLE},
+ 		
+ 	{ E_CONTACT_BIRTH_DATE,  PT_SYSTIME, PR_BIRTHDAY, ELEMENT_TYPE_COMPLEX},
+ 	{ E_CONTACT_ANNIVERSARY, PT_SYSTIME, PR_WEDDING_ANNIVERSARY, ELEMENT_TYPE_COMPLEX},
+ 		  
+-	{ E_CONTACT_NOTE, PT_STRING8, PR_BODY, ELEMENT_TYPE_SIMPLE},
+-		
++	{ E_CONTACT_NOTE, PT_UNICODE, PR_BODY_UNICODE, ELEMENT_TYPE_SIMPLE},
+ 
+-	{ E_CONTACT_ADDRESS_HOME, PT_STRING8, 0x801a001e, ELEMENT_TYPE_COMPLEX},
+-	{ E_CONTACT_ADDRESS_WORK, PT_STRING8, 0x801c001e, ELEMENT_TYPE_COMPLEX},
++	{ E_CONTACT_ADDRESS_HOME, PT_UNICODE, PROP_TAG(PT_UNICODE, 0x801a), ELEMENT_TYPE_COMPLEX},
++	{ E_CONTACT_ADDRESS_WORK, PT_UNICODE, PROP_TAG(PT_UNICODE, 0x801c), ELEMENT_TYPE_COMPLEX},
+ //		{ E_CONTACT_BOOK_URI, ELEMENT_TYPE_SIMPLE, "book_uri"}
+-//		{ E_CONTACT_EMAIL, PT_STRING8, 0x8084001e},
+ //		{ E_CONTACT_CATEGORIES, },		
+ 	};
+ 
+@@ -488,8 +486,8 @@ emapidump_gal (struct SRow *gal_entry)
+ 		gpointer value;
+ 
+ 		/* can cast it, no writing to the value; and it'll be freed not before the end of this function */
+-		value = (gpointer) find_SPropValue_data (gal_entry, mappings[i].mapi_id);
+-		if (mappings[i].element_type == PT_STRING8 && mappings[i].contact_type == ELEMENT_TYPE_SIMPLE) {
++		value = (gpointer) exchange_mapi_util_find_row_propval (gal_entry, mappings[i].mapi_id);
++		if (mappings[i].element_type == PT_UNICODE && mappings[i].contact_type == ELEMENT_TYPE_SIMPLE) {
+ 			if (value)
+ 				e_contact_set (contact, mappings[i].field_id, value);
+ 		} else if (mappings[i].contact_type == ELEMENT_TYPE_SIMPLE) {
+@@ -609,8 +607,8 @@ build_restriction_emails_contains (struc
+ 
+ 	res->rt = RES_PROPERTY;
+ 	res->res.resProperty.relop = RES_PROPERTY;
+-	res->res.resProperty.ulPropTag = 0x801f001e; /* EMAIL */
+-	res->res.resProperty.lpProp.ulPropTag = 0x801f001e; /* EMAIL*/
++	res->res.resProperty.ulPropTag = PROP_TAG(PT_UNICODE, 0x801f); /* EMAIL */
++	res->res.resProperty.lpProp.ulPropTag = PROP_TAG(PT_UNICODE, 0x801f); /* EMAIL*/
+ 	res->res.resProperty.lpProp.value.lpszA = email;
+ 
+ 	return TRUE;
+@@ -650,32 +648,32 @@ build_multiple_restriction_emails_contai
+ 
+ 	or_res[0].rt = RES_CONTENT;
+ 	or_res[0].res.resContent.fuzzy = FL_FULLSTRING | FL_IGNORECASE;
+-	or_res[0].res.resContent.ulPropTag = PR_EMS_AB_MANAGER_T;
++	or_res[0].res.resContent.ulPropTag = PR_EMS_AB_MANAGER_T_UNICODE;
+ 	or_res[0].res.resContent.lpProp.value.lpszA = email;
+ 
+ 	or_res[1].rt = RES_CONTENT;
+ 	or_res[1].res.resContent.fuzzy = FL_FULLSTRING | FL_IGNORECASE;
+-	or_res[1].res.resContent.ulPropTag = PR_DISPLAY_NAME;
++	or_res[1].res.resContent.ulPropTag = PR_DISPLAY_NAME_UNICODE;
+ 	or_res[1].res.resContent.lpProp.value.lpszA = email;
+ 
+ 	or_res[2].rt = RES_CONTENT;
+ 	or_res[2].res.resContent.fuzzy = FL_FULLSTRING | FL_IGNORECASE;
+-	or_res[2].res.resContent.ulPropTag = PR_GIVEN_NAME;
++	or_res[2].res.resContent.ulPropTag = PR_GIVEN_NAME_UNICODE;
+ 	or_res[2].res.resContent.lpProp.value.lpszA = email;
+ 
+ 	or_res[3].rt = RES_CONTENT;
+ 	or_res[3].res.resContent.fuzzy = FL_FULLSTRING | FL_IGNORECASE;
+-	or_res[3].res.resContent.ulPropTag = 0x8084001e;
++	or_res[3].res.resContent.ulPropTag = PROP_TAG(PT_UNICODE, 0x8084);
+ 	or_res[3].res.resContent.lpProp.value.lpszA = email;
+ 
+ 	or_res[4].rt = RES_CONTENT;
+ 	or_res[4].res.resContent.fuzzy = FL_FULLSTRING | FL_IGNORECASE;
+-	or_res[4].res.resContent.ulPropTag = 0x8094001e;
++	or_res[4].res.resContent.ulPropTag = PROP_TAG(PT_UNICODE, 0x8094);
+ 	or_res[4].res.resContent.lpProp.value.lpszA = email;
+ 
+ 	or_res[5].rt = RES_CONTENT;
+ 	or_res[5].res.resContent.fuzzy = FL_FULLSTRING | FL_IGNORECASE;
+-	or_res[5].res.resContent.ulPropTag = 0x80a4001e;
++	or_res[5].res.resContent.ulPropTag = PROP_TAG(PT_UNICODE, 0x80a4);
+ 	or_res[5].res.resContent.lpProp.value.lpszA = email;
+ 
+ 	res = g_new0 (struct mapi_SRestriction, 1);
+diff -upr evolutionmapi.orig/src/calendar/e-cal-backend-mapi.c evolutionmapi/src/calendar/e-cal-backend-mapi.c
+--- evolutionmapi.orig/src/calendar/e-cal-backend-mapi.c	2010-06-23 13:14:44.000000000 +0200
++++ evolutionmapi/src/calendar/e-cal-backend-mapi.c	2010-06-23 14:01:45.000000000 +0200
+@@ -89,6 +89,81 @@ struct _ECalBackendMAPIPrivate {
+ 	SyncDelta 		*dlock;
+ };
+ 
++/* this is a list of all known calendar MAPI tag IDs;
++   if you add new add it here too, otherwise it may not be fetched */
++static uint32_t known_cal_mapi_ids[] = {
++	PR_7BIT_DISPLAY_NAME_UNICODE,
++	PR_ADDRTYPE_UNICODE,
++	PR_ATTACH_DATA_BIN,
++	PR_ATTACH_FILENAME_UNICODE,
++	PR_ATTACH_LONG_FILENAME_UNICODE,
++	PR_ATTACH_METHOD,
++	PR_BODY,
++	PR_BODY_UNICODE,
++	PR_CONVERSATION_TOPIC_UNICODE,
++	PR_CREATION_TIME,
++	PR_DISPLAY_NAME_UNICODE,
++	PR_DISPLAY_TYPE,
++	PR_END_DATE,
++	PR_FID,
++	PR_GIVEN_NAME_UNICODE,
++	PR_HTML,
++	PR_ICON_INDEX,
++	PR_IMPORTANCE,
++	PR_LAST_MODIFICATION_TIME,
++	PR_MESSAGE_CLASS,
++	PR_MESSAGE_FLAGS,
++	PR_MID,
++	PR_MSG_EDITOR_FORMAT,
++	PR_NORMALIZED_SUBJECT_UNICODE,
++	PR_OBJECT_TYPE,
++	PR_OWNER_APPT_ID,
++	PR_PRIORITY,
++	PR_PROCESSED,
++	PR_RCVD_REPRESENTING_ADDRTYPE_UNICODE,
++	PR_RCVD_REPRESENTING_EMAIL_ADDRESS_UNICODE,
++	PR_RCVD_REPRESENTING_NAME_UNICODE,
++	PR_RECIPIENT_DISPLAY_NAME_UNICODE,
++	PR_RECIPIENTS_FLAGS,
++	PR_RECIPIENT_TRACKSTATUS,
++	PR_RECIPIENT_TYPE,
++	PR_RENDERING_POSITION,
++	PR_RESPONSE_REQUESTED,
++	PR_RTF_IN_SYNC,
++	PR_SENDER_ADDRTYPE_UNICODE,
++	PR_SENDER_EMAIL_ADDRESS_UNICODE,
++	PR_SENDER_NAME_UNICODE,
++	PR_SEND_INTERNET_ENCODING,
++	PR_SENSITIVITY,
++	PR_SENT_REPRESENTING_ADDRTYPE_UNICODE,
++	PR_SENT_REPRESENTING_EMAIL_ADDRESS_UNICODE,
++	PR_SENT_REPRESENTING_NAME_UNICODE,
++	PR_SMTP_ADDRESS_UNICODE,
++	PR_START_DATE,
++	PR_SUBJECT_UNICODE,
++	PROP_TAG(PT_BINARY, 0x0003),
++	PROP_TAG(PT_BINARY, 0x0023),
++	PROP_TAG(PT_BINARY, 0x8216),
++	PROP_TAG(PT_BINARY, 0x825E),
++	PROP_TAG(PT_BINARY, 0x825F),
++	PROP_TAG(PT_BOOLEAN, 0x8126),
++	PROP_TAG(PT_BOOLEAN, 0x8215),
++	PROP_TAG(PT_BOOLEAN, 0x8223),
++	PROP_TAG(PT_BOOLEAN, 0x8503),
++	PROP_TAG(PT_DOUBLE, 0x8102),
++	PROP_TAG(PT_LONG, 0x8101),
++	PROP_TAG(PT_LONG, 0x8201),
++	PROP_TAG(PT_LONG, 0x8205),
++	PROP_TAG(PT_STRING8, 0x8208),
++	PROP_TAG(PT_SYSTIME, 0x8104),
++	PROP_TAG(PT_SYSTIME, 0x8105),
++	PROP_TAG(PT_SYSTIME, 0x810F),
++	PROP_TAG(PT_SYSTIME, 0x820D),
++	PROP_TAG(PT_SYSTIME, 0x820E),
++	PROP_TAG(PT_SYSTIME, 0x8502),
++	PROP_TAG(PT_SYSTIME, 0x8560)
++};
++
+ #define PARENT_TYPE E_TYPE_CAL_BACKEND_SYNC
+ static ECalBackendClass *parent_class = NULL;
+ 
+@@ -615,7 +690,7 @@ get_deltas (gpointer handle)
+ 	/* FIXME: GetProps does not seem to work for tasks :-( */
+ 	if (kind == ICAL_VTODO_COMPONENT) {
+ 		if (!exchange_mapi_connection_fetch_items (priv->fid, use_restriction ? &res : NULL, NULL,
+-						NULL, 0, NULL, NULL, 
++						known_cal_mapi_ids, G_N_ELEMENTS (known_cal_mapi_ids), NULL, NULL, 
+ 						mapi_cal_get_changes_cb, cbmapi, 
+ 						MAPI_OPTIONS_FETCH_ALL)) {
+ 			/* FIXME: String : We need to restart evolution-data-server */
+@@ -717,7 +792,7 @@ get_deltas (gpointer handle)
+ 
+ 		if (kind == ICAL_VTODO_COMPONENT) {
+ 			if (!exchange_mapi_connection_fetch_items (priv->fid, &res, NULL,
+-						NULL, 0, NULL, NULL,
++						known_cal_mapi_ids, G_N_ELEMENTS (known_cal_mapi_ids), NULL, NULL,
+ 						mapi_cal_get_changes_cb, cbmapi,
+ 						MAPI_OPTIONS_FETCH_ALL)) {
+ 				e_cal_backend_notify_error (E_CAL_BACKEND (cbmapi), _("Error fetching changes from the server."));
+@@ -1055,7 +1130,7 @@ populate_cache (ECalBackendMAPI *cbmapi)
+ 	/* FIXME: GetProps does not seem to work for tasks :-( */
+ 	if (kind == ICAL_VTODO_COMPONENT) {
+ 		if (!exchange_mapi_connection_fetch_items (priv->fid, NULL, NULL,
+-						NULL, 0, NULL, NULL, 
++						known_cal_mapi_ids, G_N_ELEMENTS (known_cal_mapi_ids), NULL, NULL, 
+ 						mapi_cal_cache_create_cb, cbmapi, 
+ 						MAPI_OPTIONS_FETCH_ALL)) {
+ 			e_cal_backend_notify_error (E_CAL_BACKEND (cbmapi), _("Could not create cache file"));
+@@ -1310,6 +1385,19 @@ e_cal_backend_mapi_open (ECalBackendSync
+ 		return status;
+ }
+ 
++static uint32_t req_props_list[] = {
++	PR_OWNER_APPT_ID,
++	PROP_TAG(PT_LONG, 0x8201),
++	PROP_TAG(PT_BINARY, 0x0023),
++	PROP_TAG(PT_BINARY, 0x0003),
++	PR_SENT_REPRESENTING_NAME_UNICODE,
++	PR_SENT_REPRESENTING_ADDRTYPE_UNICODE,
++	PR_SENT_REPRESENTING_EMAIL_ADDRESS_UNICODE,
++	PR_SENDER_NAME_UNICODE,
++	PR_SENDER_ADDRTYPE_UNICODE,
++	PR_SENDER_EMAIL_ADDRESS_UNICODE
++};	
++
+ static gboolean 
+ capture_req_props (FetchItemsCallbackData *item_data, gpointer data)
+ {
+@@ -1325,12 +1413,12 @@ capture_req_props (FetchItemsCallbackDat
+ 		cbdata->appt_seq = *ui32;
+ 	cbdata->cleanglobalid = (const struct Binary_r *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0023));
+ 	cbdata->globalid = (const struct Binary_r *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_BINARY, 0x0003));
+-	cbdata->username = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_NAME);
+-	cbdata->useridtype = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_ADDRTYPE);
+-	cbdata->userid = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS);
+-	cbdata->ownername = exchange_mapi_util_find_array_propval (properties, PR_SENDER_NAME);
+-	cbdata->owneridtype = exchange_mapi_util_find_array_propval (properties, PR_SENDER_ADDRTYPE);
+-	cbdata->ownerid = exchange_mapi_util_find_array_propval (properties, PR_SENDER_EMAIL_ADDRESS);
++	cbdata->username = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_NAME_UNICODE);
++	cbdata->useridtype = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_ADDRTYPE_UNICODE);
++	cbdata->userid = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS_UNICODE);
++	cbdata->ownername = exchange_mapi_util_find_array_propval (properties, PR_SENDER_NAME_UNICODE);
++	cbdata->owneridtype = exchange_mapi_util_find_array_propval (properties, PR_SENDER_ADDRTYPE_UNICODE);
++	cbdata->ownerid = exchange_mapi_util_find_array_propval (properties, PR_SENDER_EMAIL_ADDRESS_UNICODE);
+ 
+ 	return TRUE;
+ }
+@@ -1350,7 +1438,7 @@ get_server_data (ECalBackendMAPI *cbmapi
+ 	uid = icalcomponent_get_uid (comp);
+ 	exchange_mapi_util_mapi_id_from_string (uid, &mid);
+ 	if (exchange_mapi_connection_fetch_item (priv->fid, mid, 
+-					NULL, 0, 
++					req_props_list, G_N_ELEMENTS (req_props_list),
+ 					NULL, NULL, 
+ 					capture_req_props, cbdata, 
+ 					MAPI_OPTIONS_FETCH_GENERIC_STREAMS))
+@@ -1370,7 +1458,7 @@ get_server_data (ECalBackendMAPI *cbmapi
+ 	cast_mapi_SPropValue (&(res.res.resProperty.lpProp), &sprop);
+ 
+ 	exchange_mapi_connection_fetch_items (priv->fid, &res, NULL,
+-					NULL, 0, 
++					req_props_list, G_N_ELEMENTS (req_props_list),
+ 					NULL, NULL, 
+ 					capture_req_props, cbdata, 
+ 					MAPI_OPTIONS_FETCH_GENERIC_STREAMS);
+diff -upr evolutionmapi.orig/src/camel/camel-mapi-folder.c evolutionmapi/src/camel/camel-mapi-folder.c
+--- evolutionmapi.orig/src/camel/camel-mapi-folder.c	2010-06-23 13:14:44.000000000 +0200
++++ evolutionmapi/src/camel/camel-mapi-folder.c	2010-06-23 13:44:10.000000000 +0200
+@@ -548,14 +548,12 @@ mapi_update_cache (CamelFolder *folder, 
+  				/* Build a SRow structure */
+  				aRow = &recip->out_SRow;
+ 
+- 				type = (uint32_t *) find_SPropValue_data (aRow, PR_RECIPIENT_TYPE);
++ 				type = (uint32_t *) exchange_mapi_util_find_row_propval (aRow, PR_RECIPIENT_TYPE);
+ 
+ 				if (type) {
+- 					name = (const char *) find_SPropValue_data (aRow, PR_DISPLAY_NAME);
+- 					name = name ? name : (const char *) find_SPropValue_data (aRow, PR_RECIPIENT_DISPLAY_NAME);
+- 					name = name ? name : (const char *) find_SPropValue_data (aRow, 
+- 												 PR_RECIPIENT_DISPLAY_NAME_UNICODE);
+- 					name = name ? name : (const char *) find_SPropValue_data (aRow, 
++					name = (const gchar *) exchange_mapi_util_find_row_propval (aRow, PR_DISPLAY_NAME_UNICODE);
++					name = name ? name : (const gchar *) exchange_mapi_util_find_row_propval (aRow, PR_RECIPIENT_DISPLAY_NAME_UNICODE);
++					name = name ? name : (const gchar *) exchange_mapi_util_find_row_propval (aRow,
+  												 PR_7BIT_DISPLAY_NAME_UNICODE);
+  					display_name = name ? name : recip->email_id;
+  					formatted_id = camel_internet_address_format_address(display_name, recip->email_id);
+@@ -964,28 +962,20 @@ mapi_refresh_folder(CamelFolder *folder,
+ 
+ 	const guint32 summary_prop_list[] = {
+ 		PR_INTERNET_CPID,
+-		PR_SUBJECT,
+ 		PR_SUBJECT_UNICODE,
+ 		PR_MESSAGE_SIZE,
+ 		PR_MESSAGE_DELIVERY_TIME,
+ 		PR_MESSAGE_FLAGS,
+-		PR_SENT_REPRESENTING_NAME,
+ 		PR_SENT_REPRESENTING_NAME_UNICODE,
+-		PR_SENT_REPRESENTING_EMAIL_ADDRESS,
+ 		PR_SENT_REPRESENTING_EMAIL_ADDRESS_UNICODE,
+-		PR_SENT_REPRESENTING_ADDRTYPE,
+ 		PR_SENT_REPRESENTING_ADDRTYPE_UNICODE,
+ 		PR_LAST_MODIFICATION_TIME,
+ 		PR_INTERNET_MESSAGE_ID,
+ 		PR_INTERNET_REFERENCES,
+ 		PR_IN_REPLY_TO_ID,
+-		PR_DISPLAY_TO,
+ 		PR_DISPLAY_TO_UNICODE,
+-		PR_DISPLAY_CC,
+ 		PR_DISPLAY_CC_UNICODE,
+-		PR_DISPLAY_BCC,
+ 		PR_DISPLAY_BCC_UNICODE,
+-		PR_TRANSPORT_MESSAGE_HEADERS,
+ 		PR_TRANSPORT_MESSAGE_HEADERS_UNICODE
+ 	};
+ 
+@@ -1115,18 +1105,14 @@ static const uint32_t camel_GetPropsList
+ 	PR_MID, 
+ 	PR_INTERNET_CPID,
+ 
+-	PR_TRANSPORT_MESSAGE_HEADERS,
+ 	PR_TRANSPORT_MESSAGE_HEADERS_UNICODE,
+ 	PR_MESSAGE_CLASS, 
+-	PR_MESSAGE_CLASS_UNICODE, 
+ 	PR_MESSAGE_SIZE, 
+ 	PR_MESSAGE_FLAGS, 
+ 	PR_MESSAGE_DELIVERY_TIME, 
+ 	PR_MSG_EDITOR_FORMAT, 
+ 
+-	PR_SUBJECT, 
+ 	PR_SUBJECT_UNICODE, 
+-	PR_CONVERSATION_TOPIC, 
+ 	PR_CONVERSATION_TOPIC_UNICODE, 
+ 
+ 	/*Properties used for message threading.*/
+@@ -1141,11 +1127,8 @@ static const uint32_t camel_GetPropsList
+  	/*PR_BODY_HTML, */
+  	/*PR_BODY_HTML_UNICODE, */
+ 
+-	PR_DISPLAY_TO, 
+ 	PR_DISPLAY_TO_UNICODE, 
+-	PR_DISPLAY_CC, 
+ 	PR_DISPLAY_CC_UNICODE, 
+-	PR_DISPLAY_BCC, 
+ 	PR_DISPLAY_BCC_UNICODE, 
+ 
+ 	PR_CREATION_TIME, 
+@@ -1158,25 +1141,16 @@ static const uint32_t camel_GetPropsList
+ 	PR_OWNER_APPT_ID, 
+ 	PR_PROCESSED, 
+ 
+-	PR_SENT_REPRESENTING_NAME, 
+ 	PR_SENT_REPRESENTING_NAME_UNICODE, 
+-	PR_SENT_REPRESENTING_ADDRTYPE, 
+ 	PR_SENT_REPRESENTING_ADDRTYPE_UNICODE, 
+-	PR_SENT_REPRESENTING_EMAIL_ADDRESS, 
+ 	PR_SENT_REPRESENTING_EMAIL_ADDRESS_UNICODE, 
+ 
+-	PR_SENDER_NAME, 
+ 	PR_SENDER_NAME_UNICODE, 
+-	PR_SENDER_ADDRTYPE, 
+ 	PR_SENDER_ADDRTYPE_UNICODE, 
+-	PR_SENDER_EMAIL_ADDRESS, 
+ 	PR_SENDER_EMAIL_ADDRESS_UNICODE, 
+ 
+-	PR_RCVD_REPRESENTING_NAME, 
+ 	PR_RCVD_REPRESENTING_NAME_UNICODE, 
+-	PR_RCVD_REPRESENTING_ADDRTYPE, 
+ 	PR_RCVD_REPRESENTING_ADDRTYPE_UNICODE, 
+-	PR_RCVD_REPRESENTING_EMAIL_ADDRESS, 
+ 	PR_RCVD_REPRESENTING_EMAIL_ADDRESS_UNICODE
+ };
+ 
+@@ -1313,7 +1287,7 @@ fetch_item_cb (FetchItemsCallbackData *i
+ 
+ 		if (appointment_body_str && *appointment_body_str) {
+ 			body = g_new0(ExchangeMAPIStream, 1);
+-			body->proptag = PR_BODY;
++			body->proptag = PR_BODY_UNICODE;
+ 			body->value = g_byte_array_new ();
+ 			body->value = g_byte_array_append (body->value, appointment_body_str, strlen ((const char *)appointment_body_str));
+ 
+@@ -1385,12 +1359,11 @@ mapi_msg_set_recipient_list (CamelMimeMe
+ 		aRow = &recip->out_SRow;
+ 		
+ 		/*Name is probably available in one of these props.*/
+-		name = (const char *) find_SPropValue_data (aRow, PR_DISPLAY_NAME);
+-		name = name ? name : (const char *) find_SPropValue_data (aRow, PR_RECIPIENT_DISPLAY_NAME);
+-		name = name ? name : (const char *) find_SPropValue_data (aRow, PR_RECIPIENT_DISPLAY_NAME_UNICODE);
+-		name = name ? name : (const char *) find_SPropValue_data (aRow, PR_7BIT_DISPLAY_NAME_UNICODE);
++		name = (const gchar *) exchange_mapi_util_find_row_propval (aRow, PR_DISPLAY_NAME_UNICODE);
++		name = name ? name : (const gchar *) exchange_mapi_util_find_row_propval (aRow, PR_RECIPIENT_DISPLAY_NAME_UNICODE);
++		name = name ? name : (const gchar *) exchange_mapi_util_find_row_propval (aRow, PR_7BIT_DISPLAY_NAME_UNICODE);
+ 
+-		type = (uint32_t *) find_SPropValue_data (aRow, PR_RECIPIENT_TYPE);
++		type = (uint32_t *) exchange_mapi_util_find_row_propval (aRow, PR_RECIPIENT_TYPE);
+ 		
+ 		/*Fallbacks. Not good*/
+ 		display_name = name ? g_strdup (name) : g_strdup (recip->email_id);
+@@ -1666,11 +1639,11 @@ mapi_folder_item_to_msg( CamelFolder *fo
+ 			part = camel_mime_part_new ();
+ 
+ 			filename = (const char *) exchange_mapi_util_find_SPropVal_array_propval(attach->lpProps, 
+-												 PR_ATTACH_LONG_FILENAME);
++												 PR_ATTACH_LONG_FILENAME_UNICODE);
+ 
+ 			if (!(filename && *filename))
+ 				filename = (const char *) exchange_mapi_util_find_SPropVal_array_propval(attach->lpProps, 
+-													 PR_ATTACH_FILENAME);
++													 PR_ATTACH_FILENAME_UNICODE);
+ 			camel_mime_part_set_filename(part, g_strdup(filename));
+ 			camel_content_type_set_param (((CamelDataWrapper *) part)->mime_type, "name", filename);
+ 
+diff -upr evolutionmapi.orig/src/camel/camel-mapi-utils.c evolutionmapi/src/camel/camel-mapi-utils.c
+--- evolutionmapi.orig/src/camel/camel-mapi-utils.c	2010-06-23 13:14:44.000000000 +0200
++++ evolutionmapi/src/camel/camel-mapi-utils.c	2010-06-23 13:45:17.000000000 +0200
+@@ -97,13 +97,13 @@ mapi_item_add_recipient (const char *rec
+ 	val = MAPI_MAILUSER;
+ 	set_SPropValue_proptag (&(recipient->in.ext_lpProps[1]), PR_OBJECT_TYPE, (const void *)&val);
+ 	str = "SMTP";
+-	set_SPropValue_proptag (&(recipient->in.ext_lpProps[2]), PR_ADDRTYPE, (const void *)(str));
++	set_SPropValue_proptag (&(recipient->in.ext_lpProps[2]), PR_ADDRTYPE_UNICODE, (const void *)(str));
+ 	str = recipient->email_id;
+-	set_SPropValue_proptag (&(recipient->in.ext_lpProps[3]), PR_SMTP_ADDRESS, (const void *)(str));
++	set_SPropValue_proptag (&(recipient->in.ext_lpProps[3]), PR_SMTP_ADDRESS_UNICODE, (const void *)(str));
+ 	/* FIXME: Please add the correct names here instead of the e-mail ID */
+-	set_SPropValue_proptag (&(recipient->in.ext_lpProps[4]), PR_GIVEN_NAME, (const void *)(str));
+-	set_SPropValue_proptag (&(recipient->in.ext_lpProps[5]), PR_DISPLAY_NAME, (const void *)(str));
+-	set_SPropValue_proptag (&(recipient->in.ext_lpProps[6]), PR_7BIT_DISPLAY_NAME, (const void *)(str));
++	set_SPropValue_proptag (&(recipient->in.ext_lpProps[4]), PR_GIVEN_NAME_UNICODE, (const void *)(str));
++	set_SPropValue_proptag (&(recipient->in.ext_lpProps[5]), PR_DISPLAY_NAME_UNICODE, (const void *)(str));
++	set_SPropValue_proptag (&(recipient->in.ext_lpProps[6]), PR_7BIT_DISPLAY_NAME_UNICODE, (const void *)(str));
+ 
+ 	bVal = FALSE;
+ 	set_SPropValue_proptag (&(recipient->in.ext_lpProps[7]), PR_SEND_RICH_INFO, &bVal);
+@@ -223,11 +223,11 @@ mapi_item_add_attach (MapiItem *item, Ca
+ 
+ 	if (filename) {
+ 		set_SPropValue_proptag(&(item_attach->lpProps[i++]), 
+-				       PR_ATTACH_FILENAME,
++				       PR_ATTACH_FILENAME_UNICODE,
+ 				       (const void *) g_strdup(filename));
+ 
+ 		set_SPropValue_proptag(&(item_attach->lpProps[i++]), 
+-				       PR_ATTACH_LONG_FILENAME, 
++				       PR_ATTACH_LONG_FILENAME_UNICODE, 
+ 				       (const void *) g_strdup(filename));
+ 	}
+ 
+diff -upr evolutionmapi.orig/src/libexchangemapi/exchange-mapi-cal-utils.c evolutionmapi/src/libexchangemapi/exchange-mapi-cal-utils.c
+--- evolutionmapi.orig/src/libexchangemapi/exchange-mapi-cal-utils.c	2010-06-23 13:14:44.000000000 +0200
++++ evolutionmapi/src/libexchangemapi/exchange-mapi-cal-utils.c	2010-06-23 14:03:20.000000000 +0200
+@@ -248,8 +248,8 @@ exchange_mapi_cal_util_fetch_attachments
+ 			flag = 0xFFFFFFFF;
+ 			set_SPropValue_proptag(&(attach_item->lpProps[1]), PR_RENDERING_POSITION, (const void *) (&flag));
+ 
+-			set_SPropValue_proptag(&(attach_item->lpProps[2]), PR_ATTACH_FILENAME, (const void *) g_strdup(split_name));
+-			set_SPropValue_proptag(&(attach_item->lpProps[3]), PR_ATTACH_LONG_FILENAME, (const void *) g_strdup(split_name));
++			set_SPropValue_proptag(&(attach_item->lpProps[2]), PR_ATTACH_FILENAME_UNICODE, (const void *) g_strdup(split_name));
++			set_SPropValue_proptag(&(attach_item->lpProps[3]), PR_ATTACH_LONG_FILENAME_UNICODE, (const void *) g_strdup(split_name));
+ 
+ 			stream = g_new0 (ExchangeMAPIStream, 1);
+ 			stream->proptag = PR_ATTACH_DATA_BIN; 
+@@ -324,7 +324,7 @@ exchange_mapi_cal_util_fetch_organizer (
+ 		str = icalparameter_get_cn (param);
+ 		if (!(str && *str)) 
+ 			str = "";
+-		set_SPropValue_proptag (&(recipient->in.req_lpProps[4]), PR_RECIPIENT_DISPLAY_NAME, (const void *)(str));
++		set_SPropValue_proptag (&(recipient->in.req_lpProps[4]), PR_RECIPIENT_DISPLAY_NAME_UNICODE, (const void *)(str));
+ 
+ 		/* External recipient properties - set them only when the recipient is unresolved */
+ 		recipient->in.ext_cValues = 5;
+@@ -335,15 +335,15 @@ exchange_mapi_cal_util_fetch_organizer (
+ 		val = MAPI_MAILUSER;
+ 		set_SPropValue_proptag (&(recipient->in.ext_lpProps[1]), PR_OBJECT_TYPE, (const void *)&val);
+ 		str = "SMTP";
+-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[2]), PR_ADDRTYPE, (const void *)(str));
++		set_SPropValue_proptag (&(recipient->in.ext_lpProps[2]), PR_ADDRTYPE_UNICODE, (const void *)(str));
+ 		str = recipient->email_id;
+-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[3]), PR_SMTP_ADDRESS, (const void *)(str));
++		set_SPropValue_proptag (&(recipient->in.ext_lpProps[3]), PR_SMTP_ADDRESS_UNICODE, (const void *)(str));
+ 
+ 		param = icalproperty_get_first_parameter (org_prop, ICAL_CN_PARAMETER);
+ 		str = icalparameter_get_cn (param);
+ 		if (!(str && *str)) 
+ 			str = "";
+-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[4]), PR_DISPLAY_NAME, (const void *)(str));
++		set_SPropValue_proptag (&(recipient->in.ext_lpProps[4]), PR_DISPLAY_NAME_UNICODE, (const void *)(str));
+ 
+ 		*recip_list = g_slist_append (*recip_list, recipient);
+ 	}
+@@ -397,7 +397,7 @@ exchange_mapi_cal_util_fetch_recipients 
+ 		param = icalproperty_get_first_parameter (att_prop, ICAL_CN_PARAMETER);
+ 		str = icalparameter_get_cn (param);
+ 		str = (str) ? str : recipient->email_id;
+-		set_SPropValue_proptag (&(recipient->in.req_lpProps[4]), PR_RECIPIENT_DISPLAY_NAME, (const void *)(str));
++		set_SPropValue_proptag (&(recipient->in.req_lpProps[4]), PR_RECIPIENT_DISPLAY_NAME_UNICODE, (const void *)(str));
+ 
+ 		/* External recipient properties - set them only when the recipient is unresolved */
+ 		recipient->in.ext_cValues = 7;
+@@ -408,16 +408,16 @@ exchange_mapi_cal_util_fetch_recipients 
+ 		val = MAPI_MAILUSER;
+ 		set_SPropValue_proptag (&(recipient->in.ext_lpProps[1]), PR_OBJECT_TYPE, (const void *)&val);
+ 		str = "SMTP";
+-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[2]), PR_ADDRTYPE, (const void *)(str));
++		set_SPropValue_proptag (&(recipient->in.ext_lpProps[2]), PR_ADDRTYPE_UNICODE, (const void *)(str));
+ 		str = recipient->email_id;
+-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[3]), PR_SMTP_ADDRESS, (const void *)(str));
++		set_SPropValue_proptag (&(recipient->in.ext_lpProps[3]), PR_SMTP_ADDRESS_UNICODE, (const void *)(str));
+ 
+ 		param = icalproperty_get_first_parameter (att_prop, ICAL_CN_PARAMETER);
+ 		str = icalparameter_get_cn (param);
+ 		str = (str) ? str : recipient->email_id;
+-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[4]), PR_GIVEN_NAME, (const void *)(str));
+-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[5]), PR_DISPLAY_NAME, (const void *)(str));
+-		set_SPropValue_proptag (&(recipient->in.ext_lpProps[6]), PR_7BIT_DISPLAY_NAME, (const void *)(str));
++		set_SPropValue_proptag (&(recipient->in.ext_lpProps[4]), PR_GIVEN_NAME_UNICODE, (const void *)(str));
++		set_SPropValue_proptag (&(recipient->in.ext_lpProps[5]), PR_DISPLAY_NAME_UNICODE, (const void *)(str));
++		set_SPropValue_proptag (&(recipient->in.ext_lpProps[6]), PR_7BIT_DISPLAY_NAME_UNICODE, (const void *)(str));
+ 
+ 		*recip_list = g_slist_append (*recip_list, recipient);
+ 
+@@ -449,9 +449,9 @@ set_attachments_to_cal_component (ECalCo
+ 		attach = (const char *)stream->value->data;
+ 		len = stream->value->len;
+ 
+-		str = (const char *) exchange_mapi_util_find_SPropVal_array_propval(attach_item->lpProps, PR_ATTACH_LONG_FILENAME);
++		str = (const char *) exchange_mapi_util_find_SPropVal_array_propval(attach_item->lpProps, PR_ATTACH_LONG_FILENAME_UNICODE);
+ 		if (!(str && *str))
+-			str = (const char *) exchange_mapi_util_find_SPropVal_array_propval(attach_item->lpProps, PR_ATTACH_FILENAME);
++			str = (const char *) exchange_mapi_util_find_SPropVal_array_propval(attach_item->lpProps, PR_ATTACH_FILENAME_UNICODE);
+ 		attach_file_url = g_strconcat (local_store_uri, G_DIR_SEPARATOR_S, uid, "-", str, NULL);
+ 		filename = g_filename_from_uri (attach_file_url, NULL, NULL);
+ 
+@@ -499,9 +499,9 @@ ical_attendees_from_props (icalcomponent
+ 			prop = icalproperty_new_organizer (val);
+ 
+ 			/* CN */
+-			str = (const char *) exchange_mapi_util_find_row_propval (&recip->out_SRow, PR_RECIPIENT_DISPLAY_NAME);
++			str = (const char *) exchange_mapi_util_find_row_propval (&recip->out_SRow, PR_RECIPIENT_DISPLAY_NAME_UNICODE);
+ 			if (!str)
+-				str = (const char *) exchange_mapi_util_find_row_propval (&recip->out_SRow, PR_DISPLAY_NAME);
++				str = (const char *) exchange_mapi_util_find_row_propval (&recip->out_SRow, PR_DISPLAY_NAME_UNICODE);
+ 			if (str) {
+ 				param = icalparameter_new_cn (str);
+ 				icalproperty_add_parameter (prop, param);
+@@ -510,9 +510,9 @@ ical_attendees_from_props (icalcomponent
+ 			prop = icalproperty_new_attendee (val);
+ 
+ 			/* CN */
+-			str = (const char *) exchange_mapi_util_find_row_propval (&recip->out_SRow, PR_RECIPIENT_DISPLAY_NAME);
++			str = (const char *) exchange_mapi_util_find_row_propval (&recip->out_SRow, PR_RECIPIENT_DISPLAY_NAME_UNICODE);
+ 			if (!str)
+-				str = (const char *) exchange_mapi_util_find_row_propval (&recip->out_SRow, PR_DISPLAY_NAME);
++				str = (const char *) exchange_mapi_util_find_row_propval (&recip->out_SRow, PR_DISPLAY_NAME_UNICODE);
+ 			if (str) {
+ 				param = icalparameter_new_cn (str);
+ 				icalproperty_add_parameter (prop, param);
+@@ -700,15 +700,15 @@ exchange_mapi_cal_util_mapi_props_to_com
+ 
+ 	utc_zone = icaltimezone_get_utc_timezone ();
+ 
+-	subject = (const gchar *)exchange_mapi_util_find_array_propval(properties, PR_SUBJECT);
++	subject = (const gchar *)exchange_mapi_util_find_array_propval(properties, PR_SUBJECT_UNICODE);
+ 	if (!subject)
+-		subject = (const gchar *)exchange_mapi_util_find_array_propval(properties, PR_NORMALIZED_SUBJECT);
++		subject = (const gchar *)exchange_mapi_util_find_array_propval(properties, PR_NORMALIZED_SUBJECT_UNICODE);
+ 	if (!subject)
+-		subject = (const gchar *)exchange_mapi_util_find_array_propval(properties, PR_CONVERSATION_TOPIC);
++		subject = (const gchar *)exchange_mapi_util_find_array_propval(properties, PR_CONVERSATION_TOPIC_UNICODE);
+ 	if (!subject)
+ 		subject = ""; 
+ 
+-	body = (const gchar *)exchange_mapi_util_find_array_propval(properties, PR_BODY);
++	body = (const gchar *)exchange_mapi_util_find_array_propval(properties, PR_BODY_UNICODE);
+ 	if (!body) {
+ 		body_stream = exchange_mapi_util_find_stream (streams, PR_HTML);
+ 		body = body_stream ? (const gchar *) body_stream->value->data : ""; 
+@@ -815,12 +815,12 @@ exchange_mapi_cal_util_mapi_props_to_com
+ 			ical_attendees_from_props (ical_comp, recipients, (b && *b));
+ 			if (icalcomponent_get_first_property (ical_comp, ICAL_ORGANIZER_PROPERTY) == NULL) {
+ 				gchar *val;
+-//				const char *sender_name = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENDER_NAME);
+-				const char *sender_email_type = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENDER_ADDRTYPE);
+-				const char *sender_email = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENDER_EMAIL_ADDRESS);
+-				const char *sent_name = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_NAME);
+-				const char *sent_email_type = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_ADDRTYPE);
+-				const char *sent_email = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS);
++//				const char *sender_name = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENDER_NAME_UNICODE);
++				const char *sender_email_type = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENDER_ADDRTYPE_UNICODE);
++				const char *sender_email = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENDER_EMAIL_ADDRESS_UNICODE);
++				const char *sent_name = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_NAME_UNICODE);
++				const char *sent_email_type = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_ADDRTYPE_UNICODE);
++				const char *sent_email = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS_UNICODE);
+ 
+ 				if (!g_utf8_collate (sender_email_type, "EX"))
+ 					sender_email = exchange_mapi_util_ex_to_smtp (sender_email);
+@@ -895,7 +895,7 @@ exchange_mapi_cal_util_mapi_props_to_com
+ 
+ 		complete = (const double *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_DOUBLE, 0x8102));
+ 		if (complete) {
+-			prop = icalproperty_new_percentcomplete ((int)(*complete * 100));
++			prop = icalproperty_new_percentcomplete ((int)(((*complete) * 100) + 1e-9));
+ 			icalcomponent_add_property (ical_comp, prop);
+ 		}
+ 
+@@ -1027,12 +1027,12 @@ fetch_server_data_cb (FetchItemsCallback
+ 	cbdata->appt_id = ui32 ? *ui32 : 0;
+ 	ui32 = (const uint32_t *)find_mapi_SPropValue_data(properties, PROP_TAG(PT_LONG, 0x8201));
+ 	cbdata->appt_seq = ui32 ? *ui32 : 0;
+-	cbdata->username = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_NAME);
+-	cbdata->useridtype = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_ADDRTYPE);
+-	cbdata->userid = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS);
+-	cbdata->ownername = exchange_mapi_util_find_array_propval (properties, PR_SENDER_NAME);
+-	cbdata->owneridtype = exchange_mapi_util_find_array_propval (properties, PR_SENDER_ADDRTYPE);
+-	cbdata->ownerid = exchange_mapi_util_find_array_propval (properties, PR_SENDER_EMAIL_ADDRESS);
++	cbdata->username = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_NAME_UNICODE);
++	cbdata->useridtype = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_ADDRTYPE_UNICODE);
++	cbdata->userid = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS_UNICODE);
++	cbdata->ownername = exchange_mapi_util_find_array_propval (properties, PR_SENDER_NAME_UNICODE);
++	cbdata->owneridtype = exchange_mapi_util_find_array_propval (properties, PR_SENDER_ADDRTYPE_UNICODE);
++	cbdata->ownerid = exchange_mapi_util_find_array_propval (properties, PR_SENDER_EMAIL_ADDRESS_UNICODE);
+ 
+ 	cbdata->comp = comp; 
+ 
+@@ -1086,13 +1086,13 @@ update_attendee_status (struct mapi_SPro
+ 
+ 	fetch_server_data (mid, &cbdata);
+ 
+-	att = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS);
+-	addrtype = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_ADDRTYPE);
++	att = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS_UNICODE);
++	addrtype = exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_ADDRTYPE_UNICODE);
+ 	if (addrtype && !g_ascii_strcasecmp (addrtype, "EX"))
+ 		att = exchange_mapi_util_ex_to_smtp (att);
+ 
+-	att_sentby = exchange_mapi_util_find_array_propval (properties, PR_SENDER_EMAIL_ADDRESS);
+-	addrtype = exchange_mapi_util_find_array_propval (properties, PR_SENDER_ADDRTYPE);
++	att_sentby = exchange_mapi_util_find_array_propval (properties, PR_SENDER_EMAIL_ADDRESS_UNICODE);
++	addrtype = exchange_mapi_util_find_array_propval (properties, PR_SENDER_ADDRTYPE_UNICODE);
+ 	if (addrtype && !g_ascii_strcasecmp (addrtype, "EX"))
+ 		att_sentby = exchange_mapi_util_ex_to_smtp (att_sentby);
+ 
+@@ -1192,12 +1192,12 @@ update_server_object (struct mapi_SPropV
+ 		icalcomponent_kind kind = icalcomponent_isa (e_cal_component_get_icalcomponent(comp));
+ 
+ 		cbdata.comp = comp;
+-		cbdata.username = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENDER_NAME);
+-		cbdata.useridtype = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENDER_ADDRTYPE);
+-		cbdata.userid = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENDER_EMAIL_ADDRESS);
+-		cbdata.ownername = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_NAME);
+-		cbdata.owneridtype = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_ADDRTYPE);
+-		cbdata.ownerid = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS);
++		cbdata.username = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENDER_NAME_UNICODE);
++		cbdata.useridtype = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENDER_ADDRTYPE_UNICODE);
++		cbdata.userid = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENDER_EMAIL_ADDRESS_UNICODE);
++		cbdata.ownername = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_NAME_UNICODE);
++		cbdata.owneridtype = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_ADDRTYPE_UNICODE);
++		cbdata.ownerid = (const char *) exchange_mapi_util_find_array_propval (properties, PR_SENT_REPRESENTING_EMAIL_ADDRESS_UNICODE);
+ 		cbdata.is_modify = FALSE;
+ 		cbdata.msgflags = MSGFLAG_READ;
+ 		cbdata.meeting_type = MEETING_REQUEST_RCVD;
+@@ -1655,12 +1655,12 @@ exchange_mapi_cal_util_build_props (stru
+ 	text = icalcomponent_get_summary (ical_comp);
+ 	if (!(text && *text)) 
+ 		text = "";
+-	set_SPropValue_proptag(&props[i++], PR_SUBJECT, 					/* propcount++ */ 
++	set_SPropValue_proptag(&props[i++], PR_SUBJECT_UNICODE, 					/* propcount++ */ 
+ 					(const void *) text);
+-	set_SPropValue_proptag(&props[i++], PR_NORMALIZED_SUBJECT, 				/* propcount++ */ 
++	set_SPropValue_proptag(&props[i++], PR_NORMALIZED_SUBJECT_UNICODE, 				/* propcount++ */ 
+ 					(const void *) text);
+ 	if (cbdata->appt_seq == 0)
+-		set_SPropValue_proptag(&props[i++], PR_CONVERSATION_TOPIC, 			/* propcount++ */
++		set_SPropValue_proptag(&props[i++], PR_CONVERSATION_TOPIC_UNICODE, 			/* propcount++ */
+ 						(const void *) text);
+ 	text = NULL;
+ 
+@@ -1672,7 +1672,7 @@ exchange_mapi_cal_util_build_props (stru
+ 	text = icalcomponent_get_description (ical_comp);
+ 	if (!(text && *text) || !g_utf8_validate (text, -1, NULL)) 
+ 		text = "";
+-	set_SPropValue_proptag(&props[i++], PR_BODY, 						/* propcount++ */
++	set_SPropValue_proptag(&props[i++], PR_BODY_UNICODE, 						/* propcount++ */
+ 					(const void *) text);
+ 	text = NULL;
+ 
+@@ -1683,17 +1683,17 @@ exchange_mapi_cal_util_build_props (stru
+ 	flag32 = prop ? get_imp_prop_from_priority (icalproperty_get_priority (prop)) : IMPORTANCE_NORMAL;
+ 	set_SPropValue_proptag(&props[i++], PR_IMPORTANCE, (const void *) &flag32); 		/* propcount++ */
+ 
+-	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_NAME, 
++	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_NAME_UNICODE, 
+ 		(const void *) cbdata->ownername); 						/* propcount++ */
+-	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_ADDRTYPE, 
++	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_ADDRTYPE_UNICODE, 
+ 		(const void *) cbdata->owneridtype); 						/* propcount++ */
+-	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_EMAIL_ADDRESS, 
++	set_SPropValue_proptag(&props[i++], PR_SENT_REPRESENTING_EMAIL_ADDRESS_UNICODE, 
+ 		(const void *) cbdata->ownerid); 						/* propcount++ */
+-	set_SPropValue_proptag(&props[i++], PR_SENDER_NAME, 
++	set_SPropValue_proptag(&props[i++], PR_SENDER_NAME_UNICODE, 
+ 		(const void *) cbdata->username); 						/* propcount++ */
+-	set_SPropValue_proptag(&props[i++], PR_SENDER_ADDRTYPE, 
++	set_SPropValue_proptag(&props[i++], PR_SENDER_ADDRTYPE_UNICODE, 
+ 		(const void *) cbdata->useridtype); 						/* propcount++ */
+-	set_SPropValue_proptag(&props[i++], PR_SENDER_EMAIL_ADDRESS, 
++	set_SPropValue_proptag(&props[i++], PR_SENDER_EMAIL_ADDRESS_UNICODE, 
+ 		(const void *) cbdata->userid); 						/* propcount++ */
+ 
+ 	flag32 = cbdata->msgflags;
+@@ -2060,13 +2060,7 @@ exchange_mapi_cal_util_build_props (stru
+ 		}
+ 
+ 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_TASK_STATUS], (const void *) &flag32);
+-
+-		/* FIXME: bug in LibMAPI - does not handle PT_DOUBLE in set_SPropValue() */
+-//		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_TASK_PERCENT], (const void *) &d); 
+-		props[i].ulPropTag = proptag_array->aulPropTag[I_TASK_PERCENT];
+-		props[i].dwAlignPad = 0x0;
+-		memcpy (&(props[i].value.dbl), &d, sizeof(double));
+-		i++; 
++		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_TASK_PERCENT], (const void *) &d); 
+ 
+ 		set_SPropValue_proptag(&props[i++], proptag_array->aulPropTag[I_TASK_ISCOMPLETE], (const void *) &b);
+ 
+diff -upr evolutionmapi.orig/src/libexchangemapi/exchange-mapi-cal-utils.h evolutionmapi/src/libexchangemapi/exchange-mapi-cal-utils.h
+--- evolutionmapi.orig/src/libexchangemapi/exchange-mapi-cal-utils.h	2010-06-23 13:14:44.000000000 +0200
++++ evolutionmapi/src/libexchangemapi/exchange-mapi-cal-utils.h	2010-06-23 13:54:12.000000000 +0200
+@@ -108,11 +108,8 @@ static const uint32_t cal_GetPropsList[]
+ 	PR_FID, 
+ 	PR_MID, 
+ 
+-	PR_SUBJECT, 
+ 	PR_SUBJECT_UNICODE, 
+-	PR_NORMALIZED_SUBJECT, 
+ 	PR_NORMALIZED_SUBJECT_UNICODE, 
+-	PR_CONVERSATION_TOPIC, 
+ 	PR_CONVERSATION_TOPIC_UNICODE, 
+ 	PR_BODY, 
+ 	PR_BODY_UNICODE, 
+@@ -128,25 +125,16 @@ static const uint32_t cal_GetPropsList[]
+ 	PR_PROCESSED, 
+ 	PR_MSG_EDITOR_FORMAT, 
+ 
+-	PR_SENT_REPRESENTING_NAME, 
+ 	PR_SENT_REPRESENTING_NAME_UNICODE, 
+-	PR_SENT_REPRESENTING_ADDRTYPE, 
+ 	PR_SENT_REPRESENTING_ADDRTYPE_UNICODE, 
+-	PR_SENT_REPRESENTING_EMAIL_ADDRESS, 
+ 	PR_SENT_REPRESENTING_EMAIL_ADDRESS_UNICODE, 
+ 
+-	PR_SENDER_NAME, 
+ 	PR_SENDER_NAME_UNICODE, 
+-	PR_SENDER_ADDRTYPE, 
+ 	PR_SENDER_ADDRTYPE_UNICODE, 
+-	PR_SENDER_EMAIL_ADDRESS, 
+ 	PR_SENDER_EMAIL_ADDRESS_UNICODE, 
+ 
+-	PR_RCVD_REPRESENTING_NAME, 
+ 	PR_RCVD_REPRESENTING_NAME_UNICODE, 
+-	PR_RCVD_REPRESENTING_ADDRTYPE, 
+ 	PR_RCVD_REPRESENTING_ADDRTYPE_UNICODE, 
+-	PR_RCVD_REPRESENTING_EMAIL_ADDRESS, 
+ 	PR_RCVD_REPRESENTING_EMAIL_ADDRESS_UNICODE
+ };
+ 
+diff -upr evolutionmapi.orig/src/libexchangemapi/exchange-mapi-connection.c evolutionmapi/src/libexchangemapi/exchange-mapi-connection.c
+--- evolutionmapi.orig/src/libexchangemapi/exchange-mapi-connection.c	2010-06-23 13:14:44.000000000 +0200
++++ evolutionmapi/src/libexchangemapi/exchange-mapi-connection.c	2010-06-23 14:00:22.000000000 +0200
+@@ -346,7 +346,7 @@ exchange_mapi_util_read_body_stream (map
+ 		if (editor != olEditorText && editor != olEditorHTML) 
+ 			editor = olEditorHTML;
+ 	} else {
+-		const uint32_t *ui32 = (const uint32_t *) get_SPropValue(lpProps, PR_MSG_EDITOR_FORMAT);
++		const uint32_t *ui32 = (const uint32_t *) exchange_mapi_util_find_SPropVal_array_propval(lpProps, PR_MSG_EDITOR_FORMAT);
+ 		/* if PR_MSG_EDITOR_FORMAT doesn't exist, set it to PLAINTEXT */
+ 		editor = ui32 ? *ui32 : olEditorText;
+ 	}
+@@ -358,9 +358,9 @@ exchange_mapi_util_read_body_stream (map
+ 	retval = -1;
+ 	switch (editor) {
+ 		case olEditorText:
+-			if ((data = (const char *) get_SPropValue (lpProps, PR_BODY_UNICODE)) != NULL)
++			if ((data = (const char *) exchange_mapi_util_find_SPropVal_array_propval (lpProps, PR_BODY_UNICODE)) != NULL)
+ 				proptag = PR_BODY_UNICODE;
+-			else if ((data = (const char *) get_SPropValue (lpProps, PR_BODY)) != NULL)
++			else if ((data = (const char *) exchange_mapi_util_find_SPropVal_array_propval (lpProps, PR_BODY)) != NULL)
+ 				proptag = PR_BODY;
+ 			if (data) {
+ 				size_t size = strlen(data)+1;
+@@ -371,9 +371,9 @@ exchange_mapi_util_read_body_stream (map
+ 			break;
+ 		case olEditorHTML: 
+ 			/* Fixme : */
+- 			/*if ((data = (const char *) get_SPropValue (lpProps, PR_BODY_HTML_UNICODE)) != NULL) */
++ 			/*if ((data = (const char *) exchange_mapi_util_find_SPropVal_array_propval (lpProps, PR_BODY_HTML_UNICODE)) != NULL) */
+  			/*	proptag = PR_BODY_HTML_UNICODE; */
+-			if ((data = (const char *) get_SPropValue (lpProps, PR_BODY_HTML)) != NULL)
++			if ((data = (const char *) exchange_mapi_util_find_SPropVal_array_propval (lpProps, PR_BODY_HTML)) != NULL)
+ 				proptag = PR_BODY_HTML;
+ 
+ 			if (data) {
+@@ -386,7 +386,7 @@ exchange_mapi_util_read_body_stream (map
+ 			}
+ 			break;
+ 		case olEditorRTF: 
+-			rtf_in_sync = (const bool *) get_SPropValue (lpProps, PR_RTF_IN_SYNC);
++			rtf_in_sync = (const bool *) exchange_mapi_util_find_SPropVal_array_propval (lpProps, PR_RTF_IN_SYNC);
+ //			if (!(rtf_in_sync && *rtf_in_sync))
+ 			{
+ 				mapi_object_t obj_stream;
+@@ -764,10 +764,10 @@ mapidump_PAB_gal_entry (struct SRow *aRo
+ 	const char	*account;
+ 	ExchangeMAPIGALEntry *gal_entry;
+ 
+-	addrtype = (const char *)find_SPropValue_data(aRow, PR_ADDRTYPE_UNICODE);
+-	name = (const char *)find_SPropValue_data(aRow, PR_DISPLAY_NAME_UNICODE);
+-	email = (const char *)find_SPropValue_data(aRow, PR_SMTP_ADDRESS_UNICODE);
+-	account = (const char *)find_SPropValue_data(aRow, PR_ACCOUNT_UNICODE);
++	addrtype = (const char *)exchange_mapi_util_find_row_propval(aRow, PR_ADDRTYPE_UNICODE);
++	name = (const char *)exchange_mapi_util_find_row_propval(aRow, PR_DISPLAY_NAME_UNICODE);
++	email = (const char *)exchange_mapi_util_find_row_propval(aRow, PR_SMTP_ADDRESS_UNICODE);
++	account = (const char *)exchange_mapi_util_find_row_propval(aRow, PR_ACCOUNT_UNICODE);
+ 
+ 	printf("[%s] %s:\n\tName: %-25s\n\tEmail: %-25s\n", 
+ 	       addrtype, account, name, email);
+@@ -865,12 +865,12 @@ exchange_mapi_util_get_recipients (mapi_
+ 
+ 		recipient->mem_ctx = talloc_init ("ExchangeMAPI_GetRecipients");
+ 
+-		recipient->email_id = talloc_steal (recipient->mem_ctx, (const char *) exchange_mapi_util_find_row_propval (&(rows_recip.aRow[i_row_recip]), PR_SMTP_ADDRESS));
++		recipient->email_id = talloc_steal (recipient->mem_ctx, (const char *) exchange_mapi_util_find_row_propval (&(rows_recip.aRow[i_row_recip]), PR_SMTP_ADDRESS_UNICODE));
+ 		/* fallback */
+ 		if (!recipient->email_id) {
+-			const char *addrtype = talloc_steal (recipient->mem_ctx, (const char *) exchange_mapi_util_find_row_propval (&(rows_recip.aRow[i_row_recip]), PR_ADDRTYPE));
++			const char *addrtype = talloc_steal (recipient->mem_ctx, (const char *) exchange_mapi_util_find_row_propval (&(rows_recip.aRow[i_row_recip]), PR_ADDRTYPE_UNICODE));
+ 			if (addrtype && !g_ascii_strcasecmp(addrtype, "SMTP"))
+-				recipient->email_id = talloc_steal (recipient->mem_ctx, (const char *) exchange_mapi_util_find_row_propval (&(rows_recip.aRow[i_row_recip]), PR_EMAIL_ADDRESS));
++				recipient->email_id = talloc_steal (recipient->mem_ctx, (const char *) exchange_mapi_util_find_row_propval (&(rows_recip.aRow[i_row_recip]), PR_EMAIL_ADDRESS_UNICODE));
+ 		}
+ 		/* fail */
+ 		if (!recipient->email_id) {
+@@ -907,9 +907,9 @@ set_recipient_properties (TALLOC_CTX *me
+ 		struct SPropValue sprop; 
+ 		const gchar *dn = NULL, *email = NULL; 
+ 
+-		dn = (const gchar *) get_SPropValue (recipient->in.ext_lpProps, PR_DISPLAY_NAME);
++		dn = (const gchar *) exchange_mapi_util_find_SPropVal_array_propval (recipient->in.ext_lpProps, PR_DISPLAY_NAME_UNICODE);
+ 		dn = (dn) ? dn : "";
+-		email = (const gchar *) get_SPropValue (recipient->in.ext_lpProps, PR_SMTP_ADDRESS);
++		email = (const gchar *) exchange_mapi_util_find_SPropVal_array_propval (recipient->in.ext_lpProps, PR_SMTP_ADDRESS_UNICODE);
+ 		email = (email) ? email : "";
+ 		oneoff_eid = exchange_mapi_util_entryid_generate_oneoff (mem_ctx, dn, email, FALSE);
+ 		set_SPropValue_proptag (&sprop, PR_ENTRYID, (const void *)(oneoff_eid));
+@@ -943,10 +943,10 @@ exchange_mapi_util_modify_recipients (TA
+ 	SPropTagArray = set_SPropTagArray(mem_ctx, 0x6,
+ 					  PR_OBJECT_TYPE,
+ 					  PR_DISPLAY_TYPE,
+-					  PR_7BIT_DISPLAY_NAME,
+-					  PR_DISPLAY_NAME,
+-					  PR_SMTP_ADDRESS,
+-					  PR_GIVEN_NAME);
++					  PR_7BIT_DISPLAY_NAME_UNICODE,
++					  PR_DISPLAY_NAME_UNICODE,
++					  PR_SMTP_ADDRESS_UNICODE,
++					  PR_GIVEN_NAME_UNICODE);
+ 
+ 
+ 	count = g_slist_length (recipients);
+@@ -1070,7 +1070,7 @@ exchange_mapi_util_check_restriction (ma
+ 					  PR_MID,
+ 					  PR_INST_ID,
+ 					  PR_INSTANCE_NUM,
+-					  PR_SUBJECT,
++					  PR_SUBJECT_UNICODE,
+ 					  PR_MESSAGE_CLASS,
+ 					  PR_LAST_MODIFICATION_TIME,
+ 					  PR_HASATTACH,
+@@ -2658,13 +2658,13 @@ get_child_folders(TALLOC_CTX *mem_ctx, E
+ 		ExchangeMAPIFolder *folder = NULL;
+ 		gchar *newname = NULL;
+ 
+-		const mapi_id_t *fid = (const mapi_id_t *)find_SPropValue_data(&rowset.aRow[i], PR_FID);
+-		const char *class = (const char *)find_SPropValue_data(&rowset.aRow[i], PR_CONTAINER_CLASS);
+-		const char *name = (const char *)find_SPropValue_data(&rowset.aRow[i], PR_DISPLAY_NAME_UNICODE);
+-		const uint32_t *unread = (const uint32_t *)find_SPropValue_data(&rowset.aRow[i], PR_CONTENT_UNREAD);
+-		const uint32_t *total = (const uint32_t *)find_SPropValue_data(&rowset.aRow[i], PR_CONTENT_COUNT);
+-		const uint32_t *child = (const uint32_t *)find_SPropValue_data(&rowset.aRow[i], PR_FOLDER_CHILD_COUNT);
+-		const uint32_t *folder_size = (const uint32_t *)find_SPropValue_data(&rowset.aRow[i], PR_MESSAGE_SIZE);
++		const mapi_id_t *fid = (const mapi_id_t *)exchange_mapi_util_find_row_propval(&rowset.aRow[i], PR_FID);
++		const char *class = (const char *)exchange_mapi_util_find_row_propval(&rowset.aRow[i], PR_CONTAINER_CLASS);
++		const char *name = (const char *)exchange_mapi_util_find_row_propval(&rowset.aRow[i], PR_DISPLAY_NAME_UNICODE);
++		const uint32_t *unread = (const uint32_t *)exchange_mapi_util_find_row_propval(&rowset.aRow[i], PR_CONTENT_UNREAD);
++		const uint32_t *total = (const uint32_t *)exchange_mapi_util_find_row_propval(&rowset.aRow[i], PR_CONTENT_COUNT);
++		const uint32_t *child = (const uint32_t *)exchange_mapi_util_find_row_propval(&rowset.aRow[i], PR_FOLDER_CHILD_COUNT);
++		const uint32_t *folder_size = (const uint32_t *)exchange_mapi_util_find_row_propval(&rowset.aRow[i], PR_MESSAGE_SIZE);
+ 
+ 		if (!class)
+ 			class = IPF_NOTE;
+@@ -2755,7 +2755,7 @@ mapi_get_ren_additional_fids (mapi_objec
+ 	aRow.cValues = count;
+ 	aRow.lpProps = lpProps;
+ 
+-	entryids = (const struct BinaryArray_r *) find_SPropValue_data(&aRow, PR_ADDITIONAL_REN_ENTRYIDS);
++	entryids = (const struct BinaryArray_r *) exchange_mapi_util_find_row_propval(&aRow, PR_ADDITIONAL_REN_ENTRYIDS);
+ 
+ 	/* Iterate through MV_BINARY */
+ 	if (entryids) {
+@@ -2882,10 +2882,10 @@ exchange_mapi_get_folders_list (GSList *
+ 	aRow.lpProps = lpProps;
+ 
+ 	/* betting that these will never fail */
+-	mailbox_name = (const char *) find_SPropValue_data(&aRow, PR_DISPLAY_NAME);
+-	mailbox_owner_name = (const char *) find_SPropValue_data(&aRow, PR_MAILBOX_OWNER_NAME);
+-	mailbox_user_name = (const char *) find_SPropValue_data(&aRow, PR_USER_NAME);
+-	mailbox_size = (const uint32_t *)find_SPropValue_data (&aRow, PR_MESSAGE_SIZE);
++	mailbox_name = (const char *) exchange_mapi_util_find_row_propval(&aRow, PR_DISPLAY_NAME);
++	mailbox_owner_name = (const char *) exchange_mapi_util_find_row_propval(&aRow, PR_MAILBOX_OWNER_NAME);
++	mailbox_user_name = (const char *) exchange_mapi_util_find_row_propval(&aRow, PR_USER_NAME);
++	mailbox_size = (const uint32_t *)exchange_mapi_util_find_row_propval (&aRow, PR_MESSAGE_SIZE);
+ 
+ 	/* Prepare the directory listing */
+ 	retval = GetDefaultFolder(&obj_store, &mailbox_id, olFolderTopInformationStore);
+@@ -3022,8 +3022,7 @@ exchange_mapi_util_ex_to_smtp (const gch
+ 
+ 	mem_ctx = talloc_init("ExchangeMAPI_EXtoSMTP");
+ 
+-	SPropTagArray = set_SPropTagArray(mem_ctx, 0x2,
+-					  PR_SMTP_ADDRESS,
++	SPropTagArray = set_SPropTagArray(mem_ctx, 0x1,
+ 					  PR_SMTP_ADDRESS_UNICODE);
+ 
+ 	retval = ResolveNames(global_mapi_session, (const char **)str_array, SPropTagArray, &SRowSet, &flaglist, 0);
+@@ -3031,9 +3030,7 @@ exchange_mapi_util_ex_to_smtp (const gch
+ 		retval = ResolveNames(global_mapi_session, (const char **)str_array, SPropTagArray, &SRowSet, &flaglist, MAPI_UNICODE);
+ 
+ 	if (retval == MAPI_E_SUCCESS && SRowSet && SRowSet->cRows == 1) {
+-		smtp_addr = (const char *) find_SPropValue_data(SRowSet->aRow, PR_SMTP_ADDRESS);
+-		if (!smtp_addr)
+-			smtp_addr = (const char *) find_SPropValue_data(SRowSet->aRow, PR_SMTP_ADDRESS_UNICODE);
++		smtp_addr = (const char *) exchange_mapi_util_find_row_propval(SRowSet->aRow, PR_SMTP_ADDRESS_UNICODE);
+ 	}
+ 
+ 	talloc_free (mem_ctx);
+diff -upr evolutionmapi.orig/src/libexchangemapi/exchange-mapi-utils.c evolutionmapi/src/libexchangemapi/exchange-mapi-utils.c
+--- evolutionmapi.orig/src/libexchangemapi/exchange-mapi-utils.c	2010-06-23 13:14:44.000000000 +0200
++++ evolutionmapi/src/libexchangemapi/exchange-mapi-utils.c	2010-06-23 13:17:39.000000000 +0200
+@@ -44,6 +44,11 @@
+ gchar *
+ utf8tolinux (const char *wstring)
+ {
++	#ifndef HAVE_WINDOWS_TO_UTF8
++	/* newer Openchange (0.10+) doesn't provide windows_to_utf8 function,
++	   it does all the necessary decoding to utf8 transparently */
++	return g_strdup (wstring);
++	#else
+ 	TALLOC_CTX 	*mem_ctx;
+ 	gchar		*newstr, *retval = NULL;
+ 	gint i;
+@@ -78,6 +83,7 @@ utf8tolinux (const char *wstring)
+ 	talloc_free (mem_ctx);
+ 
+ 	return retval;
++	#endif
+ }
+ 
+ inline gchar *

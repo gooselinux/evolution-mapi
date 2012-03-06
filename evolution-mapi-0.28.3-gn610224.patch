@@ -1,0 +1,130 @@
+commit d4e8e1dd1d309acff386d4dcc28858e3b953fc58
+Date:   Wed Feb 17 13:34:54 2010 +0100
+
+    Bug #610224 - Crash on a meeting forward notification mail
+
+diff -upr evolutionmapi.orig/src/account-setup-eplugin/exchange-mapi-account-listener.c evolutionmapi/src/account-setup-eplugin/exchange-mapi-account-listener.c
+--- evolutionmapi.orig/src/account-setup-eplugin/exchange-mapi-account-listener.c	2010-06-23 12:48:27.000000000 +0200
++++ evolutionmapi/src/account-setup-eplugin/exchange-mapi-account-listener.c	2010-06-23 12:48:41.000000000 +0200
+@@ -607,7 +607,7 @@ mapi_account_removed (EAccountList *acco
+ }
+ 
+ static gboolean
+-create_profile_entry (CamelURL *url)
++create_profile_entry (CamelURL *url, EAccount *account)
+ {
+ 	gboolean status = FALSE;
+ 	guint8 attempts = 0; 
+@@ -618,7 +618,7 @@ create_profile_entry (CamelURL *url)
+ 		key = camel_url_to_string (url, CAMEL_URL_HIDE_PASSWORD | CAMEL_URL_HIDE_PARAMS);
+ 		password = e_passwords_get_password (EXCHANGE_MAPI_PASSWORD_COMPONENT, key);
+ 		if (!password) {
+-			gboolean remember = FALSE;
++			gboolean remember = account && e_account_get_bool (account, E_ACCOUNT_SOURCE_SAVE_PASSWD);
+ 			gchar *title;
+ 
+ 			title = g_strdup_printf (_("Enter Password for %s@%s"), url->user, url->host);
+@@ -684,7 +684,7 @@ mapi_account_changed (EAccountList *acco
+ 
+ 	if (existing_account_info == NULL && isa_mapi_account) {
+ 		/* some account of other type is changed to MAPI */
+-		if (create_profile_entry (new_url)) {
++		if (create_profile_entry (new_url, account)) {
+ 			/* Things are successful */
+ 			gchar *profname = NULL, *uri = NULL; 
+ 			ExchangeMAPIAccountListener *config_listener = exchange_mapi_accounts_peek_config_listener();
+@@ -717,7 +717,7 @@ mapi_account_changed (EAccountList *acco
+ 		} else if (!mapi_camel_url_equal (old_url, new_url) || (existing_account_info->enabled != account->enabled)) {
+ 		/* Some or all of the account info changed OR the account has been moved from a disabled state to enabled state */
+ 			mapi_account_removed (account_listener, account);
+-			if (create_profile_entry (new_url)) {
++			if (create_profile_entry (new_url, account)) {
+ 				/* Things are successful */
+ 				gchar *profname = NULL, *uri = NULL; 
+ 				ExchangeMAPIAccountListener *config_listener = exchange_mapi_accounts_peek_config_listener();
+Only in evolutionmapi/src/account-setup-eplugin: exchange-mapi-account-listener.c.orig
+diff -upr evolutionmapi.orig/src/account-setup-eplugin/exchange-mapi-account-setup.c evolutionmapi/src/account-setup-eplugin/exchange-mapi-account-setup.c
+--- evolutionmapi.orig/src/account-setup-eplugin/exchange-mapi-account-setup.c	2010-06-23 12:48:27.000000000 +0200
++++ evolutionmapi/src/account-setup-eplugin/exchange-mapi-account-setup.c	2010-06-23 12:51:01.000000000 +0200
+@@ -210,7 +210,7 @@ validate_credentials (GtkWidget *widget,
+ 	key = camel_url_to_string (url, CAMEL_URL_HIDE_PASSWORD | CAMEL_URL_HIDE_PARAMS);
+ 	password = e_passwords_get_password (EXCHANGE_MAPI_PASSWORD_COMPONENT, key);
+ 	if (!password || !*password) {
+-		gboolean remember = FALSE;
++		gboolean remember = e_account_get_bool (target_account->account, E_ACCOUNT_SOURCE_SAVE_PASSWD);
+ 		gchar *title;
+ 
+ 		g_free (password);
+Only in evolutionmapi/src/account-setup-eplugin: exchange-mapi-account-setup.c.orig
+Only in evolutionmapi/src/account-setup-eplugin: exchange-mapi-account-setup.c.rej
+diff -upr evolutionmapi.orig/src/camel/camel-mapi-folder.c evolutionmapi/src/camel/camel-mapi-folder.c
+--- evolutionmapi.orig/src/camel/camel-mapi-folder.c	2010-06-23 12:48:27.000000000 +0200
++++ evolutionmapi/src/camel/camel-mapi-folder.c	2010-06-23 12:55:27.000000000 +0200
+@@ -1305,30 +1305,36 @@ fetch_item_cb (FetchItemsCallbackData *i
+ 		}
+ 	}
+ 
++	item->is_cal = FALSE;
+ 	if (g_str_has_prefix (msg_class, IPM_SCHEDULE_MEETING_PREFIX)) {
+ 		guint8 *appointment_body_str = (guint8 *) exchange_mapi_cal_util_camel_helper (item_data->properties, 
+ 											     item_data->streams, 
+ 											     item_data->recipients, item_data->attachments);
+ 
+-		body = g_new0(ExchangeMAPIStream, 1);
+-		body->proptag = PR_BODY;
+-		body->value = g_byte_array_new ();
+-		body->value = g_byte_array_append (body->value, appointment_body_str, strlen ((const char *)appointment_body_str));
++		if (appointment_body_str && *appointment_body_str) {
++			body = g_new0(ExchangeMAPIStream, 1);
++			body->proptag = PR_BODY;
++			body->value = g_byte_array_new ();
++			body->value = g_byte_array_append (body->value, appointment_body_str, strlen ((const char *)appointment_body_str));
+ 
+-		item->msg.body_parts = g_slist_append (item->msg.body_parts, body);
+-
+-		item->is_cal = TRUE;
++			item->msg.body_parts = g_slist_append (item->msg.body_parts, body);
++			item->is_cal = TRUE;
++		}
+ 
+ 		g_free (appointment_body_str);
+-	} else { 
++	}
++
++	if (!item->is_cal) {
+ 		/* always prefer unicode version, as that can be properly read */
+-		if (!((body = exchange_mapi_util_find_stream (item_data->streams, PR_BODY_UNICODE)) || 
+-		      (body = exchange_mapi_util_find_stream (item_data->streams, PR_BODY))))
+-			body = exchange_mapi_util_find_stream (item_data->streams, PR_HTML);
++		if (!(body = exchange_mapi_util_find_stream (item_data->streams, PR_BODY_UNICODE)))
++			body = exchange_mapi_util_find_stream (item_data->streams, PR_BODY);
+ 
+-		item->msg.body_parts = g_slist_append (item->msg.body_parts, body);
++		if (body)
++			item->msg.body_parts = g_slist_append (item->msg.body_parts, body);
+ 
+-		item->is_cal = FALSE;
++		body = exchange_mapi_util_find_stream (item_data->streams, PR_HTML);
++		if (body)
++			item->msg.body_parts = g_slist_append (item->msg.body_parts, body);
+ 	}
+ 
+ 	if (delivery_date) {
+@@ -1498,7 +1504,7 @@ mapi_populate_msg_body_from_item (CamelM
+ {
+ 	camel_mime_part_set_encoding (part, CAMEL_TRANSFER_ENCODING_8BIT);
+ 	
+-	if (body) {
++	if (body && body->value && body->value->len > 0) {
+ 		const gchar* type = NULL;
+ 		gchar *buff = NULL;
+ 
+@@ -1520,7 +1526,7 @@ mapi_populate_msg_body_from_item (CamelM
+ 
+ 		g_free (buff);
+ 	} else
+-		camel_mime_part_set_content (part, "", strlen (""), "text/plain");
++		camel_mime_part_set_content (part, " ", strlen (" "), "text/plain");
+ }
+ 
+ static gint

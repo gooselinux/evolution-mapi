@@ -1,0 +1,26 @@
+commit 52e8782b36f307a2a49d02189714e3206a9ce9ff
+Date:   Tue Apr 13 14:36:51 2010 +0200
+
+    Bug #595914 - Doesn't display the Cyrrilic symbols in folder names
+
+diff -upr evolutionmapi.orig/src/libexchangemapi/exchange-mapi-connection.c evolutionmapi/src/libexchangemapi/exchange-mapi-connection.c
+--- evolutionmapi.orig/src/libexchangemapi/exchange-mapi-connection.c	2010-06-23 13:09:34.000000000 +0200
++++ evolutionmapi/src/libexchangemapi/exchange-mapi-connection.c	2010-06-23 13:11:24.000000000 +0200
+@@ -2633,7 +2633,7 @@ get_child_folders(TALLOC_CTX *mem_ctx, E
+ 	SPropTagArray = set_SPropTagArray(mem_ctx, 0x7,
+ 					  PR_FID,
+ 					  PR_CONTAINER_CLASS,
+-					  PR_DISPLAY_NAME,
++					  PR_DISPLAY_NAME_UNICODE,
+ 					  PR_CONTENT_UNREAD,
+ 					  PR_CONTENT_COUNT,
+ 					  PR_MESSAGE_SIZE,
+@@ -2660,7 +2660,7 @@ get_child_folders(TALLOC_CTX *mem_ctx, E
+ 
+ 		const mapi_id_t *fid = (const mapi_id_t *)find_SPropValue_data(&rowset.aRow[i], PR_FID);
+ 		const char *class = (const char *)find_SPropValue_data(&rowset.aRow[i], PR_CONTAINER_CLASS);
+-		const char *name = (const char *)find_SPropValue_data(&rowset.aRow[i], PR_DISPLAY_NAME);
++		const char *name = (const char *)find_SPropValue_data(&rowset.aRow[i], PR_DISPLAY_NAME_UNICODE);
+ 		const uint32_t *unread = (const uint32_t *)find_SPropValue_data(&rowset.aRow[i], PR_CONTENT_UNREAD);
+ 		const uint32_t *total = (const uint32_t *)find_SPropValue_data(&rowset.aRow[i], PR_CONTENT_COUNT);
+ 		const uint32_t *child = (const uint32_t *)find_SPropValue_data(&rowset.aRow[i], PR_FOLDER_CHILD_COUNT);

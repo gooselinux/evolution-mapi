@@ -1,0 +1,125 @@
+commit 3b86ec45e4e4d399f0737f2fd045f08534f96108
+Date:   Mon May 24 18:17:41 2010 +0200
+
+    Bug #607384 - Replying causes the message to appear as garbage
+
+diff -upr evolutionmapi.orig/src/camel/camel-mapi-utils.c evolutionmapi/src/camel/camel-mapi-utils.c
+--- evolutionmapi.orig/src/camel/camel-mapi-utils.c	2010-06-23 14:17:29.000000000 +0200
++++ evolutionmapi/src/camel/camel-mapi-utils.c	2010-06-23 14:19:42.000000000 +0200
+@@ -169,6 +169,12 @@ mapi_item_set_body_stream (MapiItem *ite
+ 			g_byte_array_append (stream->value, (const guint8 *)"", 1);
+ 
+ 		item->msg.body_parts = g_slist_append (item->msg.body_parts, stream);
++	} else if (stream->proptag == PR_HTML) {
++		/* PR_HTML shouldn't be in UTF-16 */
++		if (!is_null_terminated)
++			g_byte_array_append (stream->value, (const guint8 *)"", 1);
++
++		item->generic_streams = g_slist_append (item->generic_streams, stream);
+ 	} else {
+ 		gsize written = 0;
+ 		gchar *in_unicode;
+@@ -414,7 +420,7 @@ camel_mapi_utils_create_item_build_props
+ 
+ 	props = g_new0 (struct SPropValue, 11 + 1);
+ 
+-	*cpid = 65001; /* UTF8 */
++	*cpid = 65001; /* UTF8 - also used with PR_HTML */
+ 	set_SPropValue_proptag(&props[i++], PR_INTERNET_CPID, cpid);
+ 	set_SPropValue_proptag(&props[i++], PR_SUBJECT_UNICODE, g_strdup (item->header.subject));
+ 	/* PR_CONVERSATION_TOPIC_UNICODE and PR_NORMALIZED_SUBJECT_UNICODE,
+diff -upr evolutionmapi.orig/src/libexchangemapi/exchange-mapi-connection.c evolutionmapi/src/libexchangemapi/exchange-mapi-connection.c
+--- evolutionmapi.orig/src/libexchangemapi/exchange-mapi-connection.c	2010-06-23 14:17:29.000000000 +0200
++++ evolutionmapi/src/libexchangemapi/exchange-mapi-connection.c	2010-06-23 14:23:10.000000000 +0200
+@@ -203,7 +203,7 @@ exchange_mapi_connection_close (void)
+ }
+ 
+ static gboolean 
+-exchange_mapi_util_read_generic_stream (mapi_object_t *obj_message, uint32_t proptag, GSList **stream_list)
++exchange_mapi_util_read_generic_stream (mapi_object_t *obj_message, const uint32_t *cpid, uint32_t proptag, GSList **stream_list)
+ {
+ 	enum MAPISTATUS	retval;
+ 	TALLOC_CTX 	*mem_ctx;
+@@ -268,8 +268,27 @@ exchange_mapi_util_read_generic_stream (
+ 		ExchangeMAPIStream 		*stream = g_new0 (ExchangeMAPIStream, 1);
+ 		struct mapi_SPropValue_array 	properties_array;
+ 
+-		stream->value = g_byte_array_sized_new (off_data);
+-		stream->value = g_byte_array_append (stream->value, buf_data, off_data);
++		stream->value = NULL;
++
++		if (proptag == PR_HTML && ((cpid && (*cpid == 1200 || *cpid == 1201)) || (off_data > 5 && buf_data[3] == '\0'))) {
++			/* this is special, get the CPID and transform to utf8 when it's utf16 */
++			gsize written = 0;
++			gchar *in_utf8;
++
++			in_utf8 = g_convert ((const gchar *) buf_data, off_data, "UTF-8", "UTF-16", NULL, &written, NULL);
++			if (in_utf8 && written > 0) {
++				stream->value = g_byte_array_sized_new (written + 1);
++				g_byte_array_append (stream->value, (const guint8 *) in_utf8, written);
++
++				if (in_utf8[written] != '\0')
++					g_byte_array_append (stream->value, (const guint8 *) "", 1);
++			}
++		}
++
++		if (!stream->value) {
++			stream->value = g_byte_array_sized_new (off_data);
++			g_byte_array_append (stream->value, buf_data, off_data);
++		}
+ 
+ 		/* Build a mapi_SPropValue_array structure */
+ 		properties_array.cValues = 1; 
+@@ -316,7 +335,8 @@ exchange_mapi_util_read_body_stream (map
+ 	mem_ctx = talloc_init ("ExchangeMAPI_ReadBodyStream");
+ 
+ 	/* Build the array of properties we want to fetch */
+-	SPropTagArray = set_SPropTagArray(mem_ctx, 0x6,
++	SPropTagArray = set_SPropTagArray(mem_ctx, 0x7,
++					  PR_INTERNET_CPID,
+ 					  PR_MSG_EDITOR_FORMAT,
+ 					  PR_BODY,
+ 					  PR_BODY_UNICODE,
+@@ -381,7 +401,7 @@ exchange_mapi_util_read_body_stream (map
+ 				body.data = talloc_memdup(mem_ctx, data, size);
+ 				body.length = size;
+ 				retval = MAPI_E_SUCCESS;
+-			} else if (exchange_mapi_util_read_generic_stream (obj_message, PR_HTML, stream_list)) {
++			} else if (exchange_mapi_util_read_generic_stream (obj_message, exchange_mapi_util_find_SPropVal_array_propval (lpProps, PR_INTERNET_CPID), PR_HTML, stream_list)) {
+ 				retval = MAPI_E_SUCCESS;
+ 			}
+ 			break;
+@@ -726,13 +746,13 @@ exchange_mapi_util_get_attachments (mapi
+ 		/* just to get all the other streams */
+ 		for (z=0; z < properties.cValues; z++) {
+ 			if ((properties.lpProps[z].ulPropTag & 0xFFFF) == PT_BINARY) 
+-				exchange_mapi_util_read_generic_stream (&obj_attach, properties.lpProps[z].ulPropTag, &(attachment->streams));
++				exchange_mapi_util_read_generic_stream (&obj_attach, exchange_mapi_util_find_array_propval (&properties, PR_INTERNET_CPID), properties.lpProps[z].ulPropTag, &(attachment->streams));
+ 		}
+ 
+ 		/* HACK */
+ 		ui32 = (const uint32_t *) get_SPropValue_SRow_data(&rows_attach.aRow[i_row_attach], PR_ATTACH_METHOD);
+ 		if (ui32 && *ui32 == ATTACH_BY_VALUE)
+-			exchange_mapi_util_read_generic_stream (&obj_attach, PR_ATTACH_DATA_BIN, &(attachment->streams));
++			exchange_mapi_util_read_generic_stream (&obj_attach, exchange_mapi_util_find_array_propval (&properties, PR_INTERNET_CPID), PR_ATTACH_DATA_BIN, &(attachment->streams));
+ 
+ 		*attach_list = g_slist_append (*attach_list, attachment);
+ 
+@@ -1336,7 +1356,7 @@ exchange_mapi_connection_fetch_items   (
+ 					for (z=0; z < properties_array.cValues; z++) {
+ 						if ((properties_array.lpProps[z].ulPropTag & 0xFFFF) == PT_BINARY && 
+ 						    (options & MAPI_OPTIONS_FETCH_GENERIC_STREAMS)) 
+-						exchange_mapi_util_read_generic_stream (&obj_message, properties_array.lpProps[z].ulPropTag, &stream_list);
++						exchange_mapi_util_read_generic_stream (&obj_message, exchange_mapi_util_find_array_propval (&properties_array, PR_INTERNET_CPID), properties_array.lpProps[z].ulPropTag, &stream_list);
+ 					}
+ 
+ 					mapi_SPropValue_array_named(&obj_message, &properties_array);
+@@ -1512,7 +1532,7 @@ exchange_mapi_connection_fetch_item (map
+ 		/* just to get all the other streams */
+ 		for (z=0; z < properties_array.cValues; z++)
+ 			if ((properties_array.lpProps[z].ulPropTag & 0xFFFF) == PT_BINARY && (options & MAPI_OPTIONS_FETCH_GENERIC_STREAMS))
+-				exchange_mapi_util_read_generic_stream (&obj_message, properties_array.lpProps[z].ulPropTag, &stream_list);
++				exchange_mapi_util_read_generic_stream (&obj_message, exchange_mapi_util_find_array_propval (&properties_array, PR_INTERNET_CPID), properties_array.lpProps[z].ulPropTag, &stream_list);
+ 
+ 		mapi_SPropValue_array_named(&obj_message, &properties_array);
+ 	}

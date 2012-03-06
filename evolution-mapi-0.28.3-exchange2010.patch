@@ -1,0 +1,166 @@
+GN-bug #579185 and GN-bug #608379 - connecting to exchange 2010
+
+diff -upr evolutionmapi.orig/src/account-setup-eplugin/exchange-mapi-account-listener.c evolutionmapi/src/account-setup-eplugin/exchange-mapi-account-listener.c
+--- evolutionmapi.orig/src/account-setup-eplugin/exchange-mapi-account-listener.c	2010-06-23 09:37:58.000000000 +0200
++++ evolutionmapi/src/account-setup-eplugin/exchange-mapi-account-listener.c	2010-06-23 09:45:21.000000000 +0200
+@@ -629,8 +629,11 @@ create_profile_entry (CamelURL *url)
+ 		} 
+ 		g_free (key);
+ 
+-		if (password)
+-		  status = exchange_mapi_create_profile (url->user, password, camel_url_get_param (url, "domain"), url->host, NULL, NULL, NULL);
++		if (password) {
++			guint32 cp_flags = (camel_url_get_param (url, "ssl") && g_str_equal (camel_url_get_param (url, "ssl"), "1")) ? CREATE_PROFILE_FLAG_USE_SSL : CREATE_PROFILE_FLAG_NONE;
++
++			status = exchange_mapi_create_profile (url->user, password, camel_url_get_param (url, "domain"), url->host, cp_flags, NULL, NULL, NULL);
++		}
+ 
+ 		++attempts; 
+ 	}
+diff -upr evolutionmapi.orig/src/account-setup-eplugin/exchange-mapi-account-setup.c evolutionmapi/src/account-setup-eplugin/exchange-mapi-account-setup.c
+--- evolutionmapi.orig/src/account-setup-eplugin/exchange-mapi-account-setup.c	2010-06-23 09:37:58.000000000 +0200
++++ evolutionmapi/src/account-setup-eplugin/exchange-mapi-account-setup.c	2010-06-23 09:47:40.000000000 +0200
+@@ -203,6 +203,7 @@ validate_credentials (GtkWidget *widget,
+ 
+ 	if (!url->user || !*url->user || !url->host || !*url->host || !domain_name || !*domain_name) {
+ 		e_notice (NULL, GTK_MESSAGE_ERROR, "%s", _("Server, username and domain name cannot be empty. Please fill them with correct values."));
++		camel_url_free (url);
+ 		return;
+ 	}
+ 
+@@ -222,9 +223,10 @@ validate_credentials (GtkWidget *widget,
+ 
+ 	/*Can there be a account without password ?*/
+ 	if (password && *password && domain_name && *domain_name && *url->user && *url->host) {
++		guint32 cp_flags = (camel_url_get_param (url, "ssl") && g_str_equal (camel_url_get_param (url, "ssl"), "1")) ? CREATE_PROFILE_FLAG_USE_SSL : CREATE_PROFILE_FLAG_NONE;
+ 		char *error_msg = NULL;
+ 		gboolean status = exchange_mapi_create_profile (url->user, password, domain_name,
+-								url->host, &error_msg, 
++								url->host, cp_flags, &error_msg, 
+ 								(mapi_profile_callback_t) create_profile_callback,
+ 								NULL);
+ 		if (status) {
+@@ -288,6 +290,25 @@ domain_entry_changed(GtkWidget *entry, E
+ 	camel_url_free (url);
+ }
+ 
++static void
++secure_check_toggled (GtkWidget *check, EConfig *config)
++{
++	EMConfigTargetAccount *target = (EMConfigTargetAccount *)(config->target);
++	CamelURL *url = NULL;
++	gchar *url_string = NULL;
++
++	url = camel_url_new (e_account_get_string (target->account, E_ACCOUNT_SOURCE_URL), NULL);
++
++	camel_url_set_param (url, "ssl", gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (check)) ? "1" : NULL);
++
++	url_string = camel_url_to_string (url, 0);
++	e_account_set_string (target->account, E_ACCOUNT_SOURCE_URL, url_string);
++	e_account_set_string (target->account, E_ACCOUNT_TRANSPORT_URL, url_string);
++	g_free (url_string);
++
++	camel_url_free (url);
++}
++
+ GtkWidget *
+ org_gnome_exchange_mapi_account_setup (EPlugin *epl, EConfigHookItemFactoryData *data)
+ {
+@@ -306,7 +327,9 @@ org_gnome_exchange_mapi_account_setup (E
+ 		GtkWidget *label;
+ 		GtkWidget *domain_name;
+ 		GtkWidget *auth_button;
++		GtkWidget *secure_conn;
+ 		const char *domain_value = camel_url_get_param (url, "domain");
++		const gchar *use_ssl = camel_url_get_param (url, "ssl");
+ 		int row = ((GtkTable *)data->parent)->nrows;
+ 
+ 		/* Domain name & Authenticate Button */
+@@ -328,6 +351,14 @@ org_gnome_exchange_mapi_account_setup (E
+ 		gtk_table_attach (GTK_TABLE (data->parent), label, 0, 1, row, row+1, 0, 0, 0, 0);
+ 		gtk_widget_show_all (GTK_WIDGET (hbox));
+ 		gtk_table_attach (GTK_TABLE (data->parent), GTK_WIDGET (hbox), 1, 2, row, row+1, GTK_FILL|GTK_EXPAND, GTK_FILL, 0, 0); 
++
++		row++;
++
++		secure_conn = gtk_check_button_new_with_mnemonic (_("_Use secure connection"));
++		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (secure_conn), use_ssl && g_str_equal (use_ssl, "1"));
++		g_signal_connect (secure_conn, "toggled", G_CALLBACK (secure_check_toggled), data->config);
++		gtk_widget_show (secure_conn);
++		gtk_table_attach (GTK_TABLE (data->parent), GTK_WIDGET (secure_conn), 1, 2, row, row + 1, GTK_FILL | GTK_EXPAND, GTK_FILL, 0, 0);
+ 	}
+ 
+ 	camel_url_free (url);
+diff -upr evolutionmapi.orig/src/libexchangemapi/exchange-mapi-connection.c evolutionmapi/src/libexchangemapi/exchange-mapi-connection.c
+--- evolutionmapi.orig/src/libexchangemapi/exchange-mapi-connection.c	2010-06-23 09:37:58.000000000 +0200
++++ evolutionmapi/src/libexchangemapi/exchange-mapi-connection.c	2010-06-23 09:48:32.000000000 +0200
+@@ -1307,17 +1307,23 @@ exchange_mapi_connection_fetch_items   (
+ 
+ 			if (GetPropsTagArray->cValues) {
+ 				struct SPropValue *lpProps;
++				struct SPropTagArray *tags;
+ 				uint32_t prop_count = 0, k;
++				/* we need to make a local copy of the tag array
++				 * since GetProps will modify the array on any
++				 * errors */
++				tags = set_SPropTagArray (mem_ctx, 0x1, GetPropsTagArray->aulPropTag[0]);
++				for (k = 1; k < GetPropsTagArray->cValues; k++)
++					SPropTagArray_add (mem_ctx, tags, GetPropsTagArray->aulPropTag[k]);
++				retval = GetProps (&obj_message, tags, &lpProps, &prop_count);
+ 
+-				retval = GetProps (&obj_message, GetPropsTagArray, &lpProps, &prop_count);
+-
+-				/* Conversion from SPropValue to mapi_SPropValue. (no padding here) */
+-				properties_array.cValues = prop_count;
+-				properties_array.lpProps = talloc_zero_array (mem_ctx, struct mapi_SPropValue, 
++				MAPIFreeBuffer (tags);
++				properties_array.lpProps = talloc_zero_array (mem_ctx, struct mapi_SPropValue,
+ 									 prop_count + 1);
+-				for (k=0; k < prop_count; k++)
+-					cast_mapi_SPropValue(&properties_array.lpProps[k], &lpProps[k]);
+-
++				properties_array.cValues = prop_count;
++				for (k=0; k < prop_count; k++) {
++					cast_mapi_SPropValue (&properties_array.lpProps[k], &lpProps[k]);
++				}
+ 			} else
+ 				retval = GetPropsAll (&obj_message, &properties_array);
+  relax:
+@@ -3056,7 +3062,7 @@ manage_mapi_error (const char *context, 
+ 
+ gboolean
+ exchange_mapi_create_profile (const char *username, const char *password, const char *domain,
+-			      const char *server, char **error_msg,
++			      const char *server, guint32 flags, char **error_msg,
+ 			      mapi_profile_callback_t callback, gpointer data)
+ {
+ 	enum MAPISTATUS	retval;
+@@ -3093,6 +3099,10 @@ exchange_mapi_create_profile (const char
+ 	mapi_profile_add_string_attr(profname, "binding", server);
+ 	mapi_profile_add_string_attr(profname, "workstation", workstation);
+ 	mapi_profile_add_string_attr(profname, "domain", domain);
++
++	if ((flags & CREATE_PROFILE_FLAG_USE_SSL) != 0)
++		mapi_profile_add_string_attr (profname, "seal", "true");
++
+ 	
+ 	/* This is only convenient here and should be replaced at some point */
+ 	mapi_profile_add_string_attr(profname, "codepage", "0x4e4");
+diff -upr evolutionmapi.orig/src/libexchangemapi/exchange-mapi-connection.h evolutionmapi/src/libexchangemapi/exchange-mapi-connection.h
+--- evolutionmapi.orig/src/libexchangemapi/exchange-mapi-connection.h	2010-06-23 09:37:58.000000000 +0200
++++ evolutionmapi/src/libexchangemapi/exchange-mapi-connection.h	2010-06-23 09:49:01.000000000 +0200
+@@ -198,8 +198,13 @@ uint32_t
+ exchange_mapi_util_create_named_prop (uint32_t olFolder, mapi_id_t fid, 
+ 				      const char *named_prop_name, uint32_t ptype);
+ 
++enum {
++	CREATE_PROFILE_FLAG_NONE = 0,
++	CREATE_PROFILE_FLAG_USE_SSL = (1 << 0)
++};
++
+ gboolean exchange_mapi_create_profile (const char *username, const char *password,
+-				       const char *domain, const char *server,
++				       const char *domain, const char *server, guint32 flags,
+ 				       char **error_msg, mapi_profile_callback_t cb, gpointer data);
+ gboolean exchange_mapi_delete_profile (const char *profile);
+ 

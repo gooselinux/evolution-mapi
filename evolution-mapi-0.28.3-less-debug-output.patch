@@ -1,0 +1,273 @@
+diff -upr evolutionmapi.orig/src/account-setup-eplugin/exchange-mapi-account-listener.c evolutionmapi/src/account-setup-eplugin/exchange-mapi-account-listener.c
+--- evolutionmapi.orig/src/account-setup-eplugin/exchange-mapi-account-listener.c	2010-06-23 14:45:09.000000000 +0200
++++ evolutionmapi/src/account-setup-eplugin/exchange-mapi-account-listener.c	2010-06-23 14:51:59.000000000 +0200
+@@ -48,7 +48,7 @@ LIMBAPI_CFLAGS or something is going wro
+ #include <exchange-mapi-connection.h>
+ #include <exchange-mapi-utils.h>
+ 
+-#define d(x) x
++#define d(x)
+ 
+ struct _ExchangeMAPIAccountListenerPrivate {
+ 	GConfClient *gconf_client;
+diff -upr evolutionmapi.orig/src/account-setup-eplugin/exchange-mapi-account-setup.c evolutionmapi/src/account-setup-eplugin/exchange-mapi-account-setup.c
+--- evolutionmapi.orig/src/account-setup-eplugin/exchange-mapi-account-setup.c	2010-06-23 14:45:09.000000000 +0200
++++ evolutionmapi/src/account-setup-eplugin/exchange-mapi-account-setup.c	2010-06-23 14:52:47.000000000 +0200
+@@ -48,7 +48,7 @@
+ #include <exchange-mapi-connection.h>
+ #include <exchange-mapi-utils.h>
+ 
+-#define d(x) x
++#define d(x)
+ 
+ int e_plugin_lib_enable (EPlugin *ep, int enable);
+ 
+diff -upr evolutionmapi.orig/src/addressbook/e-book-backend-mapi-gal.c evolutionmapi/src/addressbook/e-book-backend-mapi-gal.c
+--- evolutionmapi.orig/src/addressbook/e-book-backend-mapi-gal.c	2010-06-23 14:45:09.000000000 +0200
++++ evolutionmapi/src/addressbook/e-book-backend-mapi-gal.c	2010-06-23 14:51:29.000000000 +0200
+@@ -543,7 +543,7 @@ create_gal_contact_cb (FetchItemsCallbac
+ 
+ 		g_free (suid);
+ 	}
+-	g_print ("\n The counter for the above data is %d\n", counter);
++	d(g_print ("\n The counter for the above data is %d\n", counter);)
+ 	return TRUE;
+ }
+ #endif
+diff -upr evolutionmapi.orig/src/calendar/e-cal-backend-mapi.c evolutionmapi/src/calendar/e-cal-backend-mapi.c
+--- evolutionmapi.orig/src/calendar/e-cal-backend-mapi.c	2010-06-23 14:45:09.000000000 +0200
++++ evolutionmapi/src/calendar/e-cal-backend-mapi.c	2010-06-23 14:52:50.000000000 +0200
+@@ -37,7 +37,7 @@
+ #include <exchange-mapi-cal-utils.h>
+ #include <exchange-mapi-utils.h>
+ 
+-#define d(x) x
++#define d(x)
+ 
+ #ifdef G_OS_WIN32
+ /* Undef the similar macro from pthread.h, it doesn't check if
+diff -upr evolutionmapi.orig/src/camel/camel-mapi-folder.c evolutionmapi/src/camel/camel-mapi-folder.c
+--- evolutionmapi.orig/src/camel/camel-mapi-folder.c	2010-06-23 14:45:09.000000000 +0200
++++ evolutionmapi/src/camel/camel-mapi-folder.c	2010-06-23 14:51:18.000000000 +0200
+@@ -172,7 +172,7 @@ mapi_refresh_info(CamelFolder *folder, C
+ 		/* We probably could not get the messages the first time. (get_folder) failed???!
+ 		 * so do a get_folder again. And hope that it works
+ 		 */
+-		g_print("Reloading folder...something wrong with the summary....\n");
++		d(g_print("Reloading folder...something wrong with the summary....\n");)
+ 	}
+ 	//#endif
+ 
+diff -upr evolutionmapi.orig/src/camel/camel-mapi-provider.c evolutionmapi/src/camel/camel-mapi-provider.c
+--- evolutionmapi.orig/src/camel/camel-mapi-provider.c	2010-06-23 14:45:09.000000000 +0200
++++ evolutionmapi/src/camel/camel-mapi-provider.c	2010-06-23 14:52:39.000000000 +0200
+@@ -39,7 +39,7 @@
+ #include "camel-mapi-store.h"
+ #include "camel-mapi-transport.h"
+ 
+-#define d(x) x
++#define d(x)
+ 
+ static void add_hash (guint *, char *);
+ static guint mapi_url_hash (gconstpointer);
+diff -upr evolutionmapi.orig/src/camel/camel-mapi-store.c evolutionmapi/src/camel/camel-mapi-store.c
+--- evolutionmapi.orig/src/camel/camel-mapi-store.c	2010-06-23 14:45:09.000000000 +0200
++++ evolutionmapi/src/camel/camel-mapi-store.c	2010-06-23 14:52:29.000000000 +0200
+@@ -53,7 +53,6 @@
+ #include "camel-mapi-summary.h"
+ 
+ #include <exchange-mapi-utils.h>
+-//#define d(x) x
+ 
+ /* This definition should be in-sync with those in exchange-mapi-account-setup.c and exchange-account-listener.c */
+ #define E_PASSWORD_COMPONENT "ExchangeMAPI"
+@@ -68,7 +67,7 @@
+ #include <libmapi/libmapi.h>
+ #include <param.h>
+ 
+-#define d(x) printf("%s:%s:%s \n", G_STRLOC, G_STRFUNC, x)
++#define d(x) /*printf("%s:%s:%s \n", G_STRLOC, G_STRFUNC, x)*/
+ 
+ struct _CamelMapiStorePrivate {
+ 	char *user;
+diff -upr evolutionmapi.orig/src/camel/camel-mapi-transport.c evolutionmapi/src/camel/camel-mapi-transport.c
+--- evolutionmapi.orig/src/camel/camel-mapi-transport.c	2010-06-23 14:45:09.000000000 +0200
++++ evolutionmapi/src/camel/camel-mapi-transport.c	2010-06-23 14:52:42.000000000 +0200
+@@ -65,7 +65,7 @@
+ #include "camel-mapi-utils.h"
+ #include <camel/camel-session.h>
+ #include <camel/camel-store-summary.h>
+-#define d(x) x
++#define d(x)
+ 
+ #include <camel/camel-seekable-stream.h>
+ #include <exchange-mapi-defs.h>
+diff -upr evolutionmapi.orig/src/camel/camel-mapi-utils.c evolutionmapi/src/camel/camel-mapi-utils.c
+--- evolutionmapi.orig/src/camel/camel-mapi-utils.c	2010-06-23 14:45:09.000000000 +0200
++++ evolutionmapi/src/camel/camel-mapi-utils.c	2010-06-23 14:52:36.000000000 +0200
+@@ -59,7 +59,7 @@
+ #include "camel-mapi-store-summary.h"
+ #include "camel-mapi-utils.h"
+ 
+-#define d(x) x
++#define d(x)
+ 
+ #define STREAM_SIZE 4000
+ 
+diff -upr evolutionmapi.orig/src/libexchangemapi/exchange-mapi-cal-recur-utils.c evolutionmapi/src/libexchangemapi/exchange-mapi-cal-recur-utils.c
+--- evolutionmapi.orig/src/libexchangemapi/exchange-mapi-cal-recur-utils.c	2010-06-23 14:45:09.000000000 +0200
++++ evolutionmapi/src/libexchangemapi/exchange-mapi-cal-recur-utils.c	2010-06-23 14:49:32.000000000 +0200
+@@ -25,6 +25,7 @@
+ #include <config.h>
+ #endif
+ 
++#define d(x)
+ #include "exchange-mapi-cal-recur-utils.h"
+ 
+ /* Reader/Writer versions */
+@@ -698,10 +699,10 @@ exchange_mapi_cal_util_bin_to_rrule (GBy
+ 	/* FIXME: this also has modified instances */
+ 	e_cal_component_set_exdate_list (comp, exdate_list); 
+ 
+-	g_print ("\n== MAPI to ICAL == The recurrence blob data is as follows:\n");
++	d(g_print ("\n== MAPI to ICAL == The recurrence blob data is as follows:\n");
+ 	for (i = 0; i < ba->len; ++i)
+ 		g_print ("0x%02X ", ba->data[i]);
+-	g_print("\n== End of stream ==\n"); 
++	g_print("\n== End of stream ==\n");)
+ 
+ 	return TRUE;
+ }
+@@ -1146,10 +1147,10 @@ cleanup: 
+ 	e_cal_component_free_exdate_list (exdate_list);
+ 	e_cal_component_free_recur_list (rrule_list);
+ 
+-	g_print ("\n== ICAL to MAPI == The recurrence blob data is as follows:\n");
++	d(g_print ("\n== ICAL to MAPI == The recurrence blob data is as follows:\n");
+ 	for (i = 0; i < ba->len; ++i)
+ 		g_print ("0x%02X ", ba->data[i]);
+-	g_print("\n== End of stream ==\n"); 
++	g_print("\n== End of stream ==\n");)
+ 
+ 	return ba; 
+ }
+diff -upr evolutionmapi.orig/src/libexchangemapi/exchange-mapi-cal-tz-utils.c evolutionmapi/src/libexchangemapi/exchange-mapi-cal-tz-utils.c
+--- evolutionmapi.orig/src/libexchangemapi/exchange-mapi-cal-tz-utils.c	2010-06-23 14:45:09.000000000 +0200
++++ evolutionmapi/src/libexchangemapi/exchange-mapi-cal-tz-utils.c	2010-06-23 14:47:08.000000000 +0200
+@@ -215,7 +215,7 @@ exchange_mapi_cal_tz_util_dump_ical_tzs 
+ 	/* Get the array of builtin timezones. */
+ 	zones = icaltimezone_get_builtin_timezones ();
+ 
+-	g_message("%s: %s: ", G_STRLOC, G_STRFUNC);
++	d(g_message("%s: %s: ", G_STRLOC, G_STRFUNC));
+ 	for (i = 0; i < zones->num_elements; i++) {
+ 		icaltimezone *zone;
+ 		const char *tzid = NULL;
+diff -upr evolutionmapi.orig/src/libexchangemapi/exchange-mapi-connection.c evolutionmapi/src/libexchangemapi/exchange-mapi-connection.c
+--- evolutionmapi.orig/src/libexchangemapi/exchange-mapi-connection.c	2010-06-23 14:45:09.000000000 +0200
++++ evolutionmapi/src/libexchangemapi/exchange-mapi-connection.c	2010-06-23 14:50:27.000000000 +0200
+@@ -32,14 +32,14 @@
+ #include <param.h>
+ 
+ #define DEFAULT_PROF_PATH ".evolution/mapi-profiles.ldb"
+-#define d(x) x
++#define d(x)
+ 
+ static struct mapi_session *global_mapi_session= NULL;
+ static GStaticRecMutex connect_lock = G_STATIC_REC_MUTEX_INIT;
+ 
+ 
+-#define LOCK() 		g_message("%s: %s: lock(connect_lock)", G_STRLOC, G_STRFUNC);g_static_rec_mutex_lock(&connect_lock);
+-#define UNLOCK() 	g_message("%s: %s: unlock(connect_lock)", G_STRLOC, G_STRFUNC);g_static_rec_mutex_unlock(&connect_lock);
++#define LOCK() 		d(g_message("%s: %s: lock(connect_lock)", G_STRLOC, G_STRFUNC);) g_static_rec_mutex_lock(&connect_lock);
++#define UNLOCK() 	d(g_message("%s: %s: unlock(connect_lock)", G_STRLOC, G_STRFUNC);) g_static_rec_mutex_unlock(&connect_lock);
+ 
+ #if 0
+ #define LOGALL() 	lp_set_cmdline(global_mapi_ctx->lp_ctx, "log level", "10"); global_mapi_ctx->dumpdata = TRUE;
+@@ -170,10 +170,11 @@ exchange_mapi_connection_new (const char
+ 		global_mapi_session = mapi_profile_load (profile, password);
+ 	UNLOCK();
+ 
+-	if (!global_mapi_session)
++	if (!global_mapi_session) {
+ 		g_warning ("\n%s: %s: Login failed ", G_STRLOC, G_STRFUNC);
+-	else
+-		g_message ("\n%s: %s: Connected ", G_STRLOC, G_STRFUNC);
++	} else {
++		d(g_message ("\n%s: %s: Connected ", G_STRLOC, G_STRFUNC));
++	}
+ 
+ 	return global_mapi_session != NULL;
+ }
+@@ -1646,7 +1647,7 @@ exchange_mapi_create_folder (uint32_t ol
+ 	}
+ 
+ 	fid = mapi_object_get_id (&obj_folder);
+-	g_print("\nFolder %s created with id %016" G_GINT64_MODIFIER "X ", name, fid);
++	d(g_print("\nFolder %s created with id %016" G_GINT64_MODIFIER "X ", name, fid));
+ 
+ cleanup:
+ 	mapi_object_release(&obj_folder);
+@@ -1696,7 +1697,7 @@ exchange_mapi_empty_folder (mapi_id_t fi
+ 		goto cleanup;
+ 	}
+ 
+-	g_print("\nFolder with id %016" G_GINT64_MODIFIER "X was emptied ", fid);
++	d(g_print("\nFolder with id %016" G_GINT64_MODIFIER "X was emptied ", fid);)
+ 
+ 	result = TRUE;
+ 
+@@ -1757,7 +1758,7 @@ exchange_mapi_remove_folder (uint32_t ol
+ 		goto cleanup;
+ 	}
+ 
+-	g_print("\nFolder with id %016" G_GINT64_MODIFIER "X was emptied ", fid);
++	d(g_print("\nFolder with id %016" G_GINT64_MODIFIER "X was emptied ", fid);)
+ 
+ 	/* Attempt to open the top/parent folder */
+ 	retval = OpenFolder(&obj_store, folder->parent_folder_id, &obj_top);
+@@ -1773,7 +1774,7 @@ exchange_mapi_remove_folder (uint32_t ol
+ 		goto cleanup;
+ 	}
+ 
+-	g_print("\nFolder with id %016" G_GINT64_MODIFIER "X was deleted ", fid);
++	d(g_print("\nFolder with id %016" G_GINT64_MODIFIER "X was deleted ", fid);)
+ 
+ 	result = TRUE;
+ 
+@@ -2690,8 +2691,8 @@ get_child_folders(TALLOC_CTX *mem_ctx, E
+ 			class = IPF_NOTE;
+ 
+ 		newname = utf8tolinux (name);
+-		g_print("\n|---+ %-15s : (Container class: %s %016" G_GINT64_MODIFIER "X) UnRead : %d Total : %d size : %d", 
+-			newname, class, *fid, unread ? *unread : 0, total ? *total : 0, folder_size ? *folder_size : 0);
++		d(g_print("\n|---+ %-15s : (Container class: %s %016" G_GINT64_MODIFIER "X) UnRead : %d Total : %d size : %d", 
++			newname, class, *fid, unread ? *unread : 0, total ? *total : 0, folder_size ? *folder_size : 0);)
+ 
+ 		folder = exchange_mapi_folder_new (newname, class, folder_hier, *fid, folder_id,
+ 						   child ? *child : 0, unread ? *unread : 0, total ? *total : 0);
+diff -upr evolutionmapi.orig/src/libexchangemapi/exchange-mapi-folder.c evolutionmapi/src/libexchangemapi/exchange-mapi-folder.c
+--- evolutionmapi.orig/src/libexchangemapi/exchange-mapi-folder.c	2010-06-23 14:45:09.000000000 +0200
++++ evolutionmapi/src/libexchangemapi/exchange-mapi-folder.c	2010-06-23 14:51:01.000000000 +0200
+@@ -33,9 +33,9 @@ static GSList *folder_list = NULL;
+ /* we use a static mutex - even the same thread *may not* use the static vars concurrently */
+ static GStaticMutex folder_lock = G_STATIC_MUTEX_INIT;
+ 
+-#define LOCK() 		g_message("%s: %s: lock(folder_lock)", G_STRLOC, G_STRFUNC);g_static_mutex_lock(&folder_lock)
+-#define UNLOCK() 	g_message("%s: %s: unlock(folder_lock)", G_STRLOC, G_STRFUNC);g_static_mutex_unlock(&folder_lock)
+-#define d(x) x
++#define d(x)
++#define LOCK() 		d(g_message("%s: %s: lock(folder_lock)", G_STRLOC, G_STRFUNC);) g_static_mutex_lock(&folder_lock)
++#define UNLOCK() 	d(g_message("%s: %s: unlock(folder_lock)", G_STRLOC, G_STRFUNC);) g_static_mutex_unlock(&folder_lock)
+ 
+ static ExchangeMAPIFolderType
+ container_class_to_type (const char *type)
+@@ -152,7 +152,7 @@ exchange_mapi_folder_get_folder (mapi_id
+ 	tmp = folder_list;
+ 	while (tmp) {
+ 		ExchangeMAPIFolder * folder = tmp->data;
+-		g_print ("%016" G_GINT64_MODIFIER "X %016" G_GINT64_MODIFIER "X\n", folder->folder_id, fid);
++		d(g_print ("%016" G_GINT64_MODIFIER "X %016" G_GINT64_MODIFIER "X\n", folder->folder_id, fid);)
+ 		if (folder->folder_id == fid)
+ 			return folder;
+ 		tmp=tmp->next;
