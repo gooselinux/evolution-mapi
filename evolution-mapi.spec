@@ -12,7 +12,7 @@
 
 Name: evolution-mapi
 Version: 0.28.3
-Release: 7%{?dist}
+Release: 6%{?dist}
 Group: Applications/Productivity
 Summary: Evolution extension for MS Exchange 2007 servers
 License: LGPLv2+
@@ -76,9 +76,6 @@ Patch15: evolution-mapi-0.28.3-gn569631.patch
 # RH bug #589193
 Patch16: evolution-mapi-0.28.3-el6-translation-updates-2.patch
 
-# RH bug #666492
-Patch17: evolution-mapi-0.28.3-bookview-crash.patch
-
 ### Build Dependencies ###
 
 BuildRequires: evolution-data-server-devel >= %{eds_version}
@@ -121,7 +118,6 @@ Development files needed for building things which link against %{name}.
 %patch14 -p1 -b .less-debug-output
 %patch15 -p1 -b .gn569631
 %patch16 -p1 -b .el6-translation-updates-2
-%patch17 -p1 -b .bookview-crash
 
 %build
 
@@ -179,9 +175,6 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/pkgconfig/libexchangemapi-1.0.pc
 
 %changelog
-* Tue Jan 18 2011 Milan Crha <mcrha@redhat.com> - 0.28.3-7
-- Add patch for RH bug #666492 (crash with EDataBookView)
-
 * Tue Aug 10 2010 Matthew Barnes <mbarnes@redhat.com> - 0.28.3-6
 - Translation updates for Red Hat Supported Languages (RH bug #589193).
 
